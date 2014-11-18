@@ -1,0 +1,114 @@
+## imports
+import(doParallel)
+import(foreach)
+#import(POT)
+import(nnet)
+import(data.table)
+import(e1071)
+import(parallel)
+import(vcd)
+import(methods)
+import("Rcpp")
+importFrom(lattice, bwplot, panel.bwplot,packet.number,panel.points,panel.refline,panel.xyplot)
+importFrom(laeken, calibVars)
+importFrom(MASS, ginv)
+importFrom(colorspace, diverge_hcl)
+
+## exports
+exportMethods("sampleObj")
+exportMethods("sampleObj<-")
+exportMethods("sampleData")
+exportMethods("popObj")
+exportMethods("popObj<-")
+exportMethods("popData")
+exportMethods("tableObj")
+exportMethods("addWeights<-")
+export(
+  addKnownMargins,
+  calibPop,
+  calibVars,
+  calibSample,
+  contingencyWt,
+  meanWt,
+  corWt,
+  covWt,
+  getBreaks,
+  getCat,
+  ipu,
+  manageSynthPopObj,
+  quantileWt,
+  sampHH,
+  simCategorical,
+  simComponents,
+  simContinuous,
+  simEUSILC,
+  simInitSpatial,
+  simRelation,
+  simStructure,
+  specifyInput,
+  spBwplotStats,
+  spBwplot,
+  spCdf,
+  spCdfplot,
+  spMosaic,
+  sprague,
+  spTable,
+  tableWt,
+  varWt,
+  whipple
+)
+
+exportClasses(
+  dataObj,
+  synthPopObj
+)
+
+## register methods for S3 generics defined in this package
+
+# methods for S3 generic 'quantileWt'
+S3method(quantileWt, default)
+S3method(quantileWt, dataObj)
+
+# methods for S3 generic 'meanWt'
+S3method(meanWt, default)
+S3method(meanWt, dataObj)
+
+# methods for S3 generic 'varWt'
+S3method(varWt, default)
+S3method(varWt, dataObj)
+
+# methods for S3 generic 'contingencyWt'
+S3method(contingencyWt, default)
+S3method(contingencyWt, matrix)
+S3method(contingencyWt, data.frame)
+# methods for S3 generic 'calibVars'
+S3method(calibVars, default)
+S3method(calibVars, matrix)
+S3method(calibVars, data.frame)
+
+## register methods for internal S3 generics defined in this package
+# methods for S3 generic 'corWt'
+S3method(corWt, default)
+S3method(corWt, matrix)
+S3method(corWt, data.frame)
+S3method(corWt, dataObj)
+# methods for S3 generic 'covWt'
+S3method(covWt, default)
+S3method(covWt, matrix)
+S3method(covWt, data.frame)
+S3method(covWt, dataObj)
+# methods for S3 generic 'prepBwplotStats'
+S3method(prepBwplotStats, default)
+S3method(prepBwplotStats, data.frame)
+# methods for S3 generic 'prepCdf'
+S3method(prepCdf, default)
+S3method(prepCdf, data.frame)
+
+## register methods for existing S3 generics
+# as.array
+S3method(as.array, spTable)
+# as.table
+S3method(as.table, spTable)
+# print
+S3method(print, spTable)
+useDynLib(simPop)

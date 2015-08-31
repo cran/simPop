@@ -380,7 +380,6 @@ minDist <- function(i, indDonors, donors) {
 }
 
 
-
 ## weighted mean
 meanWt <- function(x, ...) UseMethod("meanWt")
 
@@ -571,12 +570,12 @@ corWt.dataObj <- function(x, vars, ...) {
 crossprodWt <- function(x, weights) {
   ci <- 1:ncol(x)
   sapply(ci, function(j) sapply(ci, function(i) {
-                                select <- !is.na(x[, i]) & !is.na(x[, j])
-                                xi <- x[select, i]
-                                xj <- x[select, j]
-                                w <- weights[select]
-                                sum(xi*xj*w) / (sum(w)-1)
-}))
+    select <- !is.na(x[, i]) & !is.na(x[, j])
+    xi <- x[select, i]
+    xj <- x[select, j]
+    w <- weights[select]
+    sum(xi*xj*w) / (sum(w)-1)
+  }))
 }
 
 manageSimPopObj <- function(x, var, sample=FALSE, set=FALSE, values=NULL) {
@@ -588,9 +587,9 @@ manageSimPopObj <- function(x, var, sample=FALSE, set=FALSE, values=NULL) {
   }
   if ( set==FALSE ) {
     if ( sample ) {
-      return(invisible(x@sample@data[[var]]))
+      return(invisible(samp(x, var=var)))
     } else {
-      return(invisible(x@pop@data[[var]]))
+      return(invisible(pop(x, var=var)))
     }
   }
   if ( set == TRUE ) {
@@ -598,10 +597,293 @@ manageSimPopObj <- function(x, var, sample=FALSE, set=FALSE, values=NULL) {
       stop("you need to provide values!\n")
     }
     if ( sample ) {
-      x@sample@data[[var]] <- values
+      samp(x, var=var) <- values
     } else {
-      x@pop@data[[var]] <- values
+      pop(x, var=var) <- values
     }
     return(invisible(x))
   }
+}
+
+setGeneric("samp", function(obj, var) {
+  standardGeneric("samp")
+})
+setMethod("samp", "simPopObj", function(obj, var) {
+  if ( is.numeric(var) ) {
+    if ( !all(var <= ncol(obj@sample@data)) ) {
+      stop("check input 'var'!\n")
+    }
+  }
+  if ( is.character(var) ) {
+    cn <- colnames(obj@sample@data)
+    var <- var[var%in%cn]
+    if ( length(var) == 0 ) {
+      return(NULL)
+    }
+  }
+  if ( is.data.table(obj@pop@data)) {
+    obj@sample@data[,var,with=F]
+  } else {
+    obj@sample@data[,var,drop=F]
+  }
+})
+setGeneric("samp<-", function(obj, var, value) {
+  standardGeneric("samp<-")
+})
+setReplaceMethod("samp", "simPopObj", function(obj, var, value) {
+  if ( length(var) != 1) {
+    stop("we can only set one variable!\n")
+  }
+  obj@sample@data[[var]] <- value
+  validObject(obj)
+  obj
+})
+
+setGeneric("pop", function(obj, var) {
+  standardGeneric("pop")
+})
+setMethod("pop", "simPopObj", function(obj, var) {
+  if ( is.numeric(var) ) {
+    if ( !all(var <= ncol(obj@pop@data)) ) {
+      stop("check input 'var'!\n")
+    }
+  }
+  if ( is.character(var) ) {
+    cn <- colnames(obj@pop@data)
+    var <- var[var%in%cn]
+    if ( length(var) == 0 ) {
+      return(NULL)
+    }
+  }
+  if ( is.data.table(obj@pop@data)) {
+    obj@pop@data[,var,with=F]
+  } else {
+    obj@pop@data[,var,drop=F]
+  }
+})
+setGeneric("pop<-", function(obj, var, value) {
+  standardGeneric("pop<-")
+})
+setReplaceMethod("pop", "simPopObj", function(obj, var, value) {
+  if ( length(var) != 1) {
+    stop("we can only set one variable!\n")
+  }
+  obj@pop@data[[var]] <- value
+  validObject(obj)
+  obj
+})
+
+################################################################
+### utility functions for the sga project
+getAge <- function(birth, year, data = NULL) {
+  # this function is only applicable if the income
+  # reference period is the previous calender year
+  if(!is.null(data)) {
+    if(missing(birth)) birth <- "rb080"
+    birth <- data[, birth]
+    if(missing(year)) year <- "rb010"
+    year <- data[, year]
+  }
+  if(is.factor(year)) year <- as.numeric(as.character(year))
+  if(is.factor(birth)) year <- as.numeric(as.character(birth))
+  year - 1 - birth
+}
+getGender <- function(gender, labels = c("male","female"), data = NULL) {
+  if(!is.null(data)) {
+    if(missing(gender)) gender <- "rb090"
+    gender <- c(data[, gender])
+  }
+  if(is.list(gender)) gender <- gender[[1]]
+  factor(c(gender), labels=labels)
+}
+#getHsize <- function(data)
+#{
+#  tab <- table(data$rb040)
+#  hsize <- rep(tab, tab)
+#}
+getEcoStat <- function(ecoStat , data , levels) {  ## variable pl030 (economic status)
+  if(missing(ecoStat)) ecoStat <- "pl031"
+  ecoStat <- factor(data[, ecoStat])
+  levels(ecoStat) <- levels
+  return(ecoStat)
+}
+getCitizenship <- function(citizenship, data, owncountry, EU, other) {
+  if(missing(citizenship)) citizenship <- "pb220a"
+  citizenship <- data[, citizenship]
+  indNA <- which(levels(citizenship) == "")
+  indOC <- which(levels(citizenship) == owncountry)
+  indEU <- which(levels(citizenship) %in% EU)
+  indOther <- which(levels(citizenship) %in% other)
+  levels <- character(nlevels(citizenship))
+  levels[indNA] <- NA
+  levels[indOC] <- owncountry
+  levels[indEU] <- "EU"
+  levels[indOther] <- "Other"
+  levels(citizenship) <- levels
+  return(citizenship)
+}
+getHsize <- function(data,hhid)
+{
+  if(missing(hhid)) hhid <- "db030"
+  tab <- table(data[,hhid]) #table(data$rb040)
+  hsize <- rep(tab, tab)
+  hsize <- as.numeric((hsize))
+  return(hsize)
+}
+restructureHHid <- function(data){
+  tab <- table(data$db030)
+  hsize <- rep(tab, tab)
+  db030 <- as.numeric(names(hsize))
+  return(db030)
+}
+#Function factorNA from package simPop: includes NAs as an extra level in the factor
+factorNA <- function(x, always = FALSE) {
+  always <- isTRUE(always)
+  if(is.factor(x)) {
+    l <- levels(x)
+    if(NA %in% l || !(always || any(is.na(x)))) x
+    else {
+      l <- c(l, NA)
+      factor(x, levels=c(levels(x), NA), exclude=c())
+    }
+  } else {
+    if(always) {
+      factor(c(NA, x), exclude=c())[-1] # little trick
+    } else factor(x, exclude=c())
+  }
+}
+# 
+# # Function uni.distribution: random draws from the weighted univariate distribution of
+# # the original data (maybe better from the SUF, but then the SUF always has to be used as well)
+# univariate.dis <- function(puf,data,additional,w){
+#   if (sum(is.na(data[,additional]))>0 & sum(is.na(data[,additional])) != dim(data)[1]) {
+#     var <- factorNA(data[,additional],always=TRUE)
+#   } else if (sum(is.na(data[,additional])) == dim(data)[1]) {
+#     var <- factor(c(NA, data[,additional]), exclude=c())[-1]
+#   } else {
+#     var <- as.factor(data[,additional])
+#   }
+#   tab <- wtd.table(var,weights=data[,w],type="table")
+#   p <- tab/sum(data[,w])
+#   puf[,additional] <- sample(x=levels(var)[levels(var) %in% names(tab)],size=dim(puf)[1],prob=p,replace=T)
+#   return(puf)
+# }
+# 
+# # Function con.distribution: random draws from the weighted conditional distribution
+# # (conditioned on a factor variable)
+# conditional.dis <- function(puf,data,additional,conditional,w){
+#   if (sum(is.na(data[,additional]))>0 & sum(is.na(data[,additional])) != dim(data)[1]) {
+#     var <- factorNA(data[,additional],always=TRUE)
+#   } else if (sum(is.na(data[,additional])) == dim(data)[1]) {
+#     var <- factor(c(NA, data[,additional]), exclude=c())[-1]
+#   } else {
+#     var <- as.factor(data[,additional])
+#   }
+#   puf[,additional] <- NA
+#   for (i in 1:length(levels(puf[,conditional]))) {
+#     tab <- wtd.table(var[data[,conditional]==levels(data[,conditional])[i]],weights=data[data[,conditional]==levels(data[,conditional])[i],w],type="table")
+#     p <- tab/sum(tab)
+#     puf[which(puf[,conditional]==levels(puf[,conditional])[i]),additional] <- sample(x=levels(var)[levels(var) %in% names(tab)],size=dim(puf[which(puf[,conditional]==levels(data[,conditional])[i]),])[1],prob=p,replace=T)
+#   }
+#   return(puf)
+# }
+utility <- function(x, y, type="all"){
+  if(type=="all" | type=="measure2"){
+    measure2 <- ncol(x) / ncol(y)
+  }
+  if(type=="all" | type=="measure3"){
+    measure3 <- nrow(x) / nrow(y)
+  }
+  if(type=="all" | type=="measure4"){
+    puf <- sum(is.na(x))
+    suf <- sum(is.na(y))
+    if(suf > 0 & puf > 0){
+      measure4 <- sum(is.na(x)) / sum(is.na(y)) - 1
+    } else if(suf == 0 & puf == 0) {
+      measure4 <- 0
+    } else if(suf > 0 & puf == 0){
+      measure4 <- 1
+    } else if(suf == 0 & puf > 0){
+      measure4 <- min(c(puf / nrow(x), 1))
+    }
+  }
+  measures <- list("measure2"=measure2,
+                   "measure3"=measure3,
+                   "measure4"=measure4)
+  return(measures)
+}
+utilityModal <- function(x, y, variable){
+  measure5 <- length(table(x[, variable])) / length(table(y[, variable]))
+  return(measure5)
+}
+utilityIndicator <- function(indicatorPUF, indicatorSUF){
+  measure6 <- abs(indicatorPUF - indicatorSUF) / indicatorSUF
+  return(measure6)
+}
+
+# prepare input for regression-based estimation methods
+# returns a list with required independent variables and the model formula
+# regModel can be either 'basic', 'availabe' or a formula
+regressionInput <- function(obj, additional, regModel) {
+  cn_pop <- colnames(popData(obj))
+  cn_samp <- colnames(sampleData(obj))
+
+  if ( length(additional) == 1 & class(regModel)=="formula" ) {
+    regModel <- list(regModel)
+  }
+
+  if ( length(additional) != length(regModel) ) {
+    stop("makeRegInput:: dimensions do not match!\n")
+  }
+
+  if ( length(additional) == 1 & class(regModel)=="formula" ) {
+    regModel <- list(regModel)
+  }
+
+  regInput <- list(); length(regInput) <- length(additional)
+  names(regInput) <- additional
+  for ( i in seq_along(additional) ) {
+    if ( class(regModel[[i]]) == "formula" ) {
+      # check the formula
+      fmt <- format(regModel[[i]])
+      if ( substr(fmt,1,1)=="~" ) {
+        regModel[[i]] <- as.formula(paste0(additional[i], fmt))
+      }
+      regvars <- all.vars(regModel[[i]])
+      if ( regvars[1] != additional[i] ) {
+        stop("dependent variable in model-formula does not match with variable name specified in 'additional'!\n")
+      }
+      regvars <- regvars[-1]
+      ii <- regvars %in% cn_pop
+      if ( !all(ii) ) {
+        stop(paste0("Some variables (", paste0(regvars[!ii], collapse=", "), ") required for the regression model are not available in the synthetic population!\n"))
+      }
+      ii <- regvars %in% cn_samp
+      if ( !all(ii) ) {
+        stop(paste0("Some variables (", paste0(regvars[!ii], collapse=", "), ") required for the regression model are not available in the sample!\n"))
+      }
+      regInput[[i]]$predNames <- regvars
+      regInput[[i]]$formula <- format(regModel[[i]])
+    } else {
+      if ( !regModel[i] %in% c("basic","available") ) {
+        stop("regModel[",i,"] is neither a formula nor 'basic' or 'available'!\n")
+      }
+      if ( regModel[[i]] == "basic" ) {
+        regInput[[i]] <- list()
+        # get basic household variables and hh sizes
+        regInput[[i]]$predNames <- c(obj@basicHHvars, sampleObj(obj)@hhsize)
+        regInput[[i]]$formula <- paste0(additional[i],"~", paste(regInput[[i]]$predNames, collapse="+"))
+      }
+      if ( regModel[[i]] == "available" ) {
+        # get all available variables from sample/pop (excluding ids,...)
+        regInput[[i]]$predNames <- setdiff(cn_pop, c(popObj(obj)@hhid, popObj(obj)@pid, popObj(obj)@weight))
+        # we also use variables previously generated
+        if ( i > 1 ) {
+          regInput[[i]]$predNames <- c(regInput[[i]]$predNames, additional[1:(i-1)])
+        }
+        regInput[[i]]$formula <- paste0(additional[i],"~", paste(regInput[[i]]$predNames, collapse="+"))
+      }
+    }
+  }
+  return(regInput)
 }

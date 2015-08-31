@@ -15,12 +15,13 @@ simContinuous(simPopObj, additional = "netIncome",
   censor = NULL, log = TRUE, const = NULL,
   alpha = 0.01, residuals = TRUE, keep = TRUE,
   maxit = 500, MaxNWts = 1500,
-  tol = .Machine$double.eps^0.5, nr_cpus = NULL, eps = NULL, seed)
+  tol = .Machine$double.eps^0.5, nr_cpus = NULL, eps = NULL,
+  regModel = "basic", byHousehold = FALSE, seed)
 }
 \arguments{
   \item{simPopObj}{a \code{\linkS4class{simPopObj}} holding household survey data, population data and optionally some margins.}
   \item{additional}{a character string specifying the additional continuous variable of \code{dataS} that should be simulated for the population data. Currently, only one additional variable can be simulated at a time.}
-  \item{method}{a character string specifying the method to be used for simulating the continuous variable. Accepted values are \code{"multinom"}, for using multinomial log-linear models combined with random draws from the resulting ategories, and \code{"lm"}, for using (two-step) regression models combined with random error terms.}
+  \item{method}{a character string specifying the method to be used for simulating the continuous variable. Accepted values are \code{"multinom"}, for using multinomial log-linear models combined with random draws from the resulting categories, and \code{"lm"}, for using (two-step) regression models combined with random error terms.}
   \item{zeros}{a logical indicating whether the variable specified by \code{additional} is semi-continuous, i.e., contains a considerable amount of zeros. If \code{TRUE} and \code{method} is \code{"multinom"}, a separate factor level for zeros in the response is used. If \code{TRUE} and \code{method} is \code{"lm"}, a two-step model is applied. The first step thereby uses a log-linear or multinomial log-linear model (see \dQuote{Details}).}
   \item{breaks}{an optional numeric vector; if multinomial models are computed, this can be used to supply two or more break points for categorizing the variable specified by \code{additional}. If \code{NULL}, break points are computed using weighted quantiles.}
   \item{lower, upper}{optional numeric values; if multinomial models are computed and \code{breaks} is \code{NULL}, these can be used to specify lower and upper bounds other than minimum and maximum, respectively. Note that if \code{method} is \code{"multinom"} and \code{gpd} is \code{TRUE} (see below), \code{upper} defaults to \code{Inf}.}
@@ -40,6 +41,13 @@ simContinuous(simPopObj, additional = "netIncome",
   \item{tol}{if \code{method} is \code{"lm"} and \code{zeros} is \code{TRUE}, a small positive numeric value or \code{NULL}. When fitting a log-linear model within a stratum, factor levels may not exist in the sample but are likely to exist in the population. However, the coefficient for such factor levels will be 0. Therefore, coefficients smaller than \code{tol} in absolute value are replaced by coefficients from an auxiliary model that is fit to the whole sample. If \code{NULL}, no auxiliary log-linear model is computed and no coefficients are replaced.}
   \item{nr_cpus}{if specified, an integer number defining the number of cpus that should be used for parallel processing.}
   \item{eps}{a small positive numeric value, or \code{NULL} (the default). In the former case and if (multinomial) log-linear models are computed, estimated probabilities smaller than this are assumed to result from structural zeros and are set to exactly 0.}
+  \item{regModel}{allows to specify the model that should be for the simulation of the additional continuous variable. The following choices are possible:
+  \itemize{
+    \item{'basic'}{only the basic household-variables (generated with \code{\link{simStructure}}) are used.}
+    \item{'available'}{all available variables (that are common in the sample and the syntetic population (e.g. previously generated variables) are used for the modeling. Should be used with care because all variables are automatically used as factors!}
+    \item{formula-object}: Users may also specify a specific formula (class 'formula') that will be used. Checks are performed that all required variables are available.}
+  }
+  \item{byHousehold}{if TRUE, predicted values are replaced with the mean within each household.}
   \item{seed}{optional; an integer value to be used as the seed of the random number generator, or an integer vector containing the state of the random number generator to be restored.}
 }
 \details{
@@ -52,8 +60,8 @@ simContinuous(simPopObj, additional = "netIncome",
   If \code{zeros} is \code{TRUE}, \code{log} is \code{TRUE}, \code{const} is \code{NULL} and there are negative values, a multinomial log-linear model is used to predict negative, zero and positive observations. Categories for the negative values are thereby defined by \code{breaks}. In the second step, a linear model is used to predict the positive values and negative values are drawn from uniform distributions in the respective classes.
 
   If \code{zeros} is \code{FALSE}, \code{log} is \code{TRUE} and \code{const} is \code{NULL}, a two-step model is used if there are non-positive values in the variable specified by \code{additional}. Whether a log-linear or a multinomial log-linear model is used depends on the number of categories to be used for the non-positive values, as defined by \code{breaks}. Again, positive values are then predicted with a linear model and non-positive values are drawn from uniform distributions.
-  
-The number of cpus are selected automatically in the following manner. The number of cpus is equal the number of strata. However, if the number of cpus is less than the number of strata, the number of cpus - 1 is used by default. 
+
+The number of cpus are selected automatically in the following manner. The number of cpus is equal the number of strata. However, if the number of cpus is less than the number of strata, the number of cpus - 1 is used by default.
 This should be the best strategy, but the user can also overwrite this decision.
 }
 \value{

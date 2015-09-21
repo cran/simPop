@@ -2,8 +2,8 @@ Package: simPop
 Type: Package
 Title: Simulation of Synthetic Populations for Survey Data Considering
         Auxiliary Information
-Version: 0.2.12
-Date: 2015-08-31
+Version: 0.2.13
+Date: 2015-09-21
 Author: Bernhard Meindl, Matthias Templ, Andreas Alfons, Alexander Kowarik, and with contributions from Mathieu Ribatet
 Maintainer: Matthias Templ<matthias.templ@gmail.com>
 Depends: R(>= 3.0.0), lattice, vcd, data.table
@@ -14,6 +14,6 @@ Description: Tools and methods to simulate populations for surveys based on auxi
 License: GPL (>= 2)
 LazyLoad: yes
 NeedsCompilation: yes
-Packaged: 2015-08-31 08:26:18 UTC; templ
+Packaged: 2015-09-21 12:35:34 UTC; templ
 Repository: CRAN
-Date/Publication: 2015-08-31 14:55:21
+Date/Publication: 2015-09-21 15:37:30

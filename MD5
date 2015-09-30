@@ -1,6 +1,6 @@
-437866086a705e3af0ac4e7da53c757f *DESCRIPTION
+733b61380a394ec80331489943689fec *DESCRIPTION
 bd3ad0c268421813e3a0e4e9e9b69f55 *NAMESPACE
-e7b0ad91b22ab4bf8f396c3b87569353 *NEWS
+87b20bf50e55d214d83fa651dd025e1e *NEWS
 c084e6fca43220454eb05201d59af7fb *R/0classes.R
 a44062c510a5cd6b043d46723d7452f6 *R/addKnownMargins.R
 e4ff9500068ab1abb9f5229d7ddacb57 *R/addWeights.r
@@ -15,7 +15,7 @@ ca055309ac3cccdef5ea9b581266d349 *R/ipu.r
 7b516c324ec4e34455664fb975735575 *R/sampHH.R
 8a5c2b201aad3988240e51ab588b3c5b *R/simCategorical.R
 ca46296a28969cda712ac638a2c8639d *R/simComponents.R
-43756747acc1fca70ae92e9019593563 *R/simContinuous.R
+b3f6052a8053e21f43e7a6c07cc20cbe *R/simContinuous.R
 dde8b0580d5cfec6459444ee55acc1f6 *R/simEUSILC.R
 0d627f2d932ed15422e4ac2b11f6ef6a *R/simGPD.R
 93a1b5cf958003d6e740a7c9868e693e *R/simInitSpatial.R
@@ -33,7 +33,7 @@ a70edbfd04650207b0e1df808614c1da *R/spSample.R
 33d74f8799cf38973c90a1515c78506f *R/sprague.R
 cc6f6d07c00951593f1701e4fcf8bf62 *R/synthPop.R
 86f4521d3eb4ed7db5282edc24f6bbb0 *R/tableWt.R
-3719369933d370e3e5284e7cd8b563c2 *R/utils.R
+12367e8db3135fc4083ab5451d7561e2 *R/utils.R
 2919c6502dda8604839fa522564e8e90 *R/whipple.R
 d57db1ec0e06a2f033106d6e118506d6 *R/zzz.R
 bc829c9fb585de733640f1bf7374ee7b *data/datalist
@@ -62,10 +62,10 @@ c4784e65bc4bae059021a9ba69f17f59 *man/eusilcS.Rd
 23617883ff464f6883ac562dd91b9672 *man/manageSynthPopObj.Rd
 357ebed6691e59247b3a58e56f4386f8 *man/quantileWt.Rd
 413a71d56e14970ab0979c37cee20c40 *man/sampHH.Rd
-caa330190f467a0b3a57dde855a0dd1c *man/set_get-methods.Rd
+a224560274ab3eb2ff409d37c3b51a62 *man/set_get-methods.Rd
 5fc2a54db4ee48b9d386948d3d382372 *man/simCategorical.Rd
 e94e25d17218213e102ed83e7a4deed0 *man/simComponents.Rd
-1bf9b237265cff67a03c2e175c1821b4 *man/simContinuous.Rd
+4bfa900f06503fd3c2a0c407717a6081 *man/simContinuous.Rd
 e91bd1d26583f0e689b764e7be798c81 *man/simEUSILC.Rd
 5b431924f3ce1476e4069216a8164056 *man/simInitSpatial.Rd
 131157a6f943d0c5d8190989b9fa614a *man/simRelation.Rd

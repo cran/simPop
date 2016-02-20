@@ -1,10 +1,53 @@
+#' Simulate the household structure of population data
+#' 
+#' Simulate basic categorical variables that define the household structure
+#' (typically variables such as household ID, age and gender) of population
+#' data by resampling from survey data.
+#' 
+#' @name simStructure
+#' @param dataS an object of class \code{dataObj} containing household survey
+#' data that is usually generated with \code{\link{specifyInput}}.
+#' @param method a character string specifying the method to be used for
+#' simulating the household sizes.  Accepted values are \code{"direct"}
+#' (estimation of the population totals for each combination of stratum and
+#' household size using the Horvitz-Thompson estimator), \code{"multinom"}
+#' (estimation of the conditional probabilities within the strata using a
+#' multinomial log-linear model and random draws from the resulting
+#' distributions), or \code{"distribution"} (random draws from the observed
+#' conditional distributions within the strata).
+#' @param basicHHvars a character vector specifying important variables for the
+#' household structure that need to be available in \code{dataS}. Typically
+#' variables such as age or sex may be used.
+#' @param seed optional; an integer value to be used as the seed of the random
+#' number generator, or an integer vector containing the state of the random
+#' number generator to be restored.
+#' @return An object of class \code{simPopObj} containing the simulated
+#' population household structure as well as the underlying sample that was
+#' provided as input.
+#' @note The function \code{\link{sample}} is used, which gives results
+#' incompatible with those from < 2.2.0 and produces a warning the first time
+#' this happens in a session.
+#' @author Bernhard Meindl and Andreas Alfons
+#' @seealso \code{\link{simCategorical}}, \code{\link{simContinuous}},
+#' \code{\link{simComponents}}, \code{\link{simEUSILC}}
+#' @keywords datagen
+#' @export
+#' @examples
+#' 
+#' data(eusilcS)
+#' inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
+#' eusilcP <- simStructure(data=inp, method="direct", basicHHvars=c("age", "rb090"))
+#' class(eusilcP)
+#' eusilcP
+#' 
 simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), basicHHvars, seed=1) {
   if ( !class(dataS) == "dataObj" ) {
     stop("Error. Please provide the input sample in the required format.\n
       It must be an object of class 'dataObj' that can be created using function specifyInput()!\n")
   }
   if ( dataS@ispopulation ) {
-    stop("dataS must contain sample information!\n")
+    cat("the structure is created from a population! \n")
+    #stop("dataS must contain sample information!\n")
   }
 
   if ( is.null(basicHHvars) ) {
@@ -31,7 +74,12 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
 
   # extract variables
   hid <- dataS@data[[dataS@hhid]]
-  w <- dataS@data[[dataS@weight]]
+  if ( dataS@ispopulation ) {
+    w <- rep(1,length(hid))
+  }else{
+    w <- dataS@data[[dataS@weight]]  
+  }
+  
   hsize <- dataS@data[[dataS@hhsize]]
   if ( !is.null(dataS@strata) ) {
     strata <- factor(dataS@data[[dataS@strata]])
@@ -153,10 +201,14 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
   if ( is.null(dataS@strata) ) {
     cmd <- paste0(cmd,")")
   } else {
-    if ( method == "direct" ) {
-      cmd <- paste0(cmd, ", ",dataS@strata,"=strata[indices]", expr,")")
+    if ( dataS@strata %in% basicHHvars ) {
+        cmd <- paste0(cmd, expr,")")
     } else {
-      cmd <- paste0(cmd, ", ",dataS@strata,"=dataPH$strata[hidNew]", expr, ")")
+      if ( method == "direct" ) {
+        cmd <- paste0(cmd, ", ",dataS@strata,"=strata[indices]", expr,")")
+      } else {
+        cmd <- paste0(cmd, ", ",dataS@strata,"=dataPH$strata[hidNew]", expr, ")")
+      }      
     }
   }
   # evaluate command and return result

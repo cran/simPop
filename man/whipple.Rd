@@ -4,12 +4,14 @@
 \alias{whipple}
 \title{Whipple index (original and modified)}
 \usage{
-whipple(x, method = "standard")
+whipple(x, method = "standard", weight = NULL)
 }
 \arguments{
 \item{x}{numeric vector holding the age of persons}
 
-\item{method}{\dQuote{original} or \dQuote{modified} Whipple index.}
+\item{method}{\dQuote{standard} or \dQuote{modified} Whipple index.}
+
+\item{weight}{numeric vector holding the weights of each person}
 }
 \value{
 The original or modified Whipple index.
@@ -34,16 +36,30 @@ to a maximum of 500.
 For the modified Whipple index, age heaping is calculated for all ten digits
 (0-9). For each digit, the degree of preference or avoidance can be
 determined for certain ranges of ages, and the modified Whipple index then
-is given by the absolute sum of these (indices - 1).
+is given by the absolute sum of these (indices - 1). The index is scaled between
+0 and 1, therefore it is 1 if all age values end with the same digit and 0 it is
+distributed perfectly equally.
 }
 \examples{
 
+#Equally distributed
 age <- sample(1:100, 5000, replace=TRUE)
 whipple(age)
+whipple(age,method="modified")
+
+# Only 5 and 10
+age5 <- sample(seq(0,100,by=5), 5000, replace=TRUE)
+whipple(age5)
+whipple(age5,method="modified")
+
+#Only 10
+age10 <- sample(seq(0,100,by=10), 5000, replace=TRUE)
+whipple(age10)
+whipple(age10,method="modified")
 
 }
 \author{
-Matthias Templ
+Matthias Templ, Alexander Kowarik
 }
 \references{
 Henry S. Shryock and Jacob S. Siegel, Methods and Materials of

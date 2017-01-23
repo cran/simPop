@@ -18,13 +18,16 @@
 #' For the modified Whipple index, age heaping is calculated for all ten digits
 #' (0-9). For each digit, the degree of preference or avoidance can be
 #' determined for certain ranges of ages, and the modified Whipple index then
-#' is given by the absolute sum of these (indices - 1).
+#' is given by the absolute sum of these (indices - 1). The index is scaled between
+#' 0 and 1, therefore it is 1 if all age values end with the same digit and 0 it is
+#' distributed perfectly equally.
 #' 
 #' @name whipple
 #' @param x numeric vector holding the age of persons
-#' @param method \dQuote{original} or \dQuote{modified} Whipple index.
+#' @param method \dQuote{standard} or \dQuote{modified} Whipple index.
+#' @param weight numeric vector holding the weights of each person
 #' @return The original or modified Whipple index.
-#' @author Matthias Templ
+#' @author Matthias Templ, Alexander Kowarik
 #' @seealso \code{\link{sprague}}
 #' @references Henry S. Shryock and Jacob S. Siegel, Methods and Materials of
 #' Demography (New York: Academic Press, 1976)
@@ -32,29 +35,47 @@
 #' @export
 #' @examples
 #' 
+#' #Equally distributed
 #' age <- sample(1:100, 5000, replace=TRUE)
 #' whipple(age)
+#' whipple(age,method="modified")
 #' 
-whipple <- function(x, method="standard"){
-  x <- x[x >= 23 & x <= 62]
+#' # Only 5 and 10
+#' age5 <- sample(seq(0,100,by=5), 5000, replace=TRUE)
+#' whipple(age5)
+#' whipple(age5,method="modified")
+#' 
+#' #Only 10
+#' age10 <- sample(seq(0,100,by=10), 5000, replace=TRUE)
+#' whipple(age10)
+#' whipple(age10,method="modified")
+#' 
+whipple <- function(x, method="standard",weight=NULL){
   if(method == "standard"){
-    xm <- x %% 5
-    whipple <- (length(xm[xm==0])/length(x))*500
+	if(is.null(weight)){
+	  x <- x[x >= 23 & x <= 62]
+      xm <- x %% 5
+      return((length(xm[xm==0])/length(x))*500)
+    }else{
+	  weight <- weight[x >= 23 & x <= 62]
+	  x <- x[x >= 23 & x <= 62]
+	  xm <- x %% 5
+	  return((sum(weight[xm==0])/sum(weight))*500)
+	}
+  }else if(method == "modified"){
+    
+	if(is.null(weight)){
+		tab <- table(x)	
+	}else{
+		tab <- tableWt(x,weight)
+	}
+    W <- numeric(10)
+	for(i in 1:10){
+		W[i] <- sum(tab[as.numeric(names(tab))%in%seq(i-10,200,by=10)]) / (sum(tab)/10)	
+	}
+    return(sum(abs(W-1), na.rm=TRUE)/18)
+  }else{
+    stop(paste("Supplied mehtod",method,"is not implemented"))
   }
-  if(method == "modified"){
-    tab <- table(x)
-    sp <- function(p) seq(p,p+30,10)
-    W <- numeric(9)
-    W[1] <- 5*sum(sp(31)) / sum(5*sp(29)) 
-    W[2] <- 5*sum(sp(32)) / sum(5*sp(30)) 
-    W[3] <- 5*sum(sp(23)) / sum(5*sp(21))
-    W[4] <- 5*sum(sp(24)) / sum(5*sp(22))
-    W[6] <- 5*sum(sp(26)) / sum(5*sp(24))
-    W[7] <- 5*sum(sp(27)) / sum(5*sp(25))
-    W[8] <- 5*sum(sp(28)) / sum(5*sp(26))
-    W[9] <- 5*sum(sp(29)) / sum(5*sp(27))
-    whipple <- sum(abs(W-1), na.rm=TRUE)
-  }
-  return(whipple)
 }
 

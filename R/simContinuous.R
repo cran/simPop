@@ -99,13 +99,18 @@ generateValues_lm <- function(dataSample, dataPop, params) {
 
   # fix: for each predictor, the level set must be equal in dataSample and dataPop
   for ( i in predNames ) {
-    both <- intersect(levels(dataSample[[i]]), levels(dataPop[[i]]))
-    a <- as.character(dataSample[[i]])
-    a[!a%in%both] <- NA
-    b <- as.character(dataPop[[i]])
-    b[!b %in%both] <- NA
-    dataSample[[i]] <- factor(a, levels=both)
-    dataPop[[i]] <- factor(b, levels=both)
+	if(is.factor(dataSample[[i]])){	  
+      both <- intersect(levels(dataSample[[i]]), levels(dataPop[[i]]))
+      a <- as.character(dataSample[[i]])
+      a[!a%in%both] <- NA
+      b <- as.character(dataPop[[i]])
+      b[!b %in%both] <- NA
+      dataSample[[i]] <- factor(a, levels=both)
+      dataPop[[i]] <- factor(b, levels=both)
+    }
+	if((is.factor(dataSample[[i]])&!is.factor(dataPop[[i]]))|(is.factor(dataPop[[i]])&!is.factor(dataSample[[i]]))){
+		stop("Variable",i,"is a factor only in one of the sample and population data sets.")
+	}
   }
   # unique combinations in the stratum of the population need to be computed for prediction
   indGrid <- split(1:nrow(dataPop), dataPop, drop=TRUE)
@@ -194,13 +199,18 @@ generateValues_poisson <- function(dataSample, dataPop, params) {
 
   # fix: for each predictor, the level set must be equal in dataSample and dataPop
   for ( i in predNames ) {
-    both <- intersect(levels(dataSample[[i]]), levels(dataPop[[i]]))
-    a <- as.character(dataSample[[i]])
-    a[!a%in%both] <- NA
-    b <- as.character(dataPop[[i]])
-    b[!b %in%both] <- NA
-    dataSample[[i]] <- factor(a, levels=both)
-    dataPop[[i]] <- factor(b, levels=both)
+	if(is.factor(dataSample[[i]])){
+      both <- intersect(levels(dataSample[[i]]), levels(dataPop[[i]]))
+      a <- as.character(dataSample[[i]])
+      a[!a%in%both] <- NA
+      b <- as.character(dataPop[[i]])
+      b[!b %in%both] <- NA
+      dataSample[[i]] <- factor(a, levels=both)
+      dataPop[[i]] <- factor(b, levels=both)
+	}
+	if((is.factor(dataSample[[i]])&!is.factor(dataPop[[i]]))|(is.factor(dataPop[[i]])&!is.factor(dataSample[[i]]))){
+		stop("Variable",i,"is a factor only in one of the sample and population data sets.")
+	}
   }
   # unique combinations in the stratum of the population need to be computed for prediction
   indGrid <- split(1:nrow(dataPop), dataPop, drop=TRUE)
@@ -231,23 +241,28 @@ generateValues_poisson <- function(dataSample, dataPop, params) {
     exclude <- integer()
   }
   # fit linear model
-  mod <- eval(parse(text=command))
+  mod <- try(eval(parse(text=command)))
   # add coefficients from auxiliary model if necessary
   #tmp <- coef
   #coef[names(coef(mod))] <- coef(mod)
   #mod$coefficients <- coef
   # prediction
   # add 0 variable to combinations for use of 'model.matrix'
-  newdata <- cbind(grid, 0)
-  names(newdata) <- c(predNames, additional[1])
-
-  if ( length(exclude) == 0 ) {
-    pred <- round(predict(mod, newdata=newdata,type="response"))
-  } else {
-    pred <- as.list(rep.int(NA, length(indGrid)))
-    pred[-exclude] <- round(predict(mod, newdata=newdata,type="response"))
+  if(!"try-error"%in%class(mod)){
+    newdata <- cbind(grid, 0)
+    names(newdata) <- c(predNames, additional[1])
+    
+    if ( length(exclude) == 0 ) {
+      pred <- round(predict(mod, newdata=newdata,type="response"))
+    } else {
+      pred <- as.list(rep.int(NA, length(indGrid)))
+      pred[-exclude] <- round(predict(mod, newdata=newdata,type="response"))
+    }
+    pred <- unsplit(pred, dataPop, drop=TRUE)  
+  }else{
+    pred <- rep(0,nrow(dataPop))
   }
-  pred <- unsplit(pred, dataPop, drop=TRUE)
+  
   # add error terms
 # addition of an error term, not implemented for Poisson Regression yet
 #  if ( residuals ) {
@@ -278,6 +293,9 @@ generateValues_binary <- function(dataSample, dataPop, params) {
   }
   # if all y values are the same return the same value for everybody
   if(length(unique(dataSample[[name]]))==1){
+    if(params$verbose){
+      cat("All values in the training data set are the same!\n")
+    }
     return(rep(dataSample[[name]][1],nrow(dataPop)))
   }
   # unique combinations in the stratum of the population need to be computed for prediction
@@ -354,10 +372,14 @@ generateValues_binary <- function(dataSample, dataPop, params) {
     })
   }
   # return realizations
+  if(params$verbose){
+    cat("Summary of the predicted probabilites:")
+    print(summary(unsplit(sim, dataPop, drop=TRUE)))
+  }
   unsplit(sim, dataPop, drop=TRUE)
 }
 
-genVals <- function(dataSample, dataPop, params, typ) {
+genVals <- function(dataSample, dataPop, params, typ, response) {
   # unify level-set of predictors
   for ( i in params$predNames ) {
     dataSample[[i]] <- cleanFactor(dataSample[[i]])
@@ -366,6 +388,11 @@ genVals <- function(dataSample, dataPop, params, typ) {
 
   if ( !typ %in% c("multinom","lm","binary","poisson") ) {
     stop("unsupported value for argument 'type' in genVals()\n")
+  }
+  # Check wheter all response values are the same
+  if(length(unique(response))==1){
+	  res <- rep(unique(response),nrow(dataPop))
+	  return(res)
   }
   if ( typ=="binary") {
     res <- generateValues_binary(dataSample, dataPop, params)
@@ -394,8 +421,8 @@ runModel <- function(dataS, dataP, params, typ) {
       valuesCat <- foreach(x=levels(dataS[[strata]]), .options.snow=list(preschedule=TRUE)) %dopar% {
         genVals(
           dataSample=dataS[dataS[[strata]] == x,],
-          dataPop=dataP[indStrata[[x]], predNames, with=F],
-          params,
+          dataPop=dataP[indStrata[[x]], predNames, with=FALSE],
+          params,response=dataS[dataS[[strata]] == x,eval(parse(text=params$name))],
           typ=typ)
       }
       stopCluster(cl)
@@ -405,20 +432,24 @@ runModel <- function(dataS, dataP, params, typ) {
       valuesCat <- mclapply(levels(dataS[[strata]]), function(x) {
         genVals(
           dataSample=dataS[dataS[[strata]] == x,],
-          dataPop=dataP[indStrata[[x]], predNames, with=F],
-          params=params,
+          dataPop=dataP[indStrata[[x]], predNames, with=FALSE],
+		  params,response=dataS[dataS[[strata]] == x,eval(parse(text=params$name))],
           typ=typ)
       },mc.cores=pp$nr_cores)
     }
   } else {
+    if(params$verbose){
+      cat("All values of the by group:","\n")
+      print(levels(dataS[[strata]]))
+    }
     valuesCat <- lapply(levels(dataS[[strata]]), function(x) {
        if(params$verbose){
          cat("Current by group for the binary model:",x,"\n")
        }
       genVals(
-        dataSample=dataS[dataS[[strata]] == x,c(predNames, additional), with=F],
+        dataSample=dataS[dataS[[strata]] == x,c(predNames, additional), with=FALSE],
         dataPop=dataP[indStrata[[x]], predNames, with=F],
-        params=params,
+		params,response=dataS[dataS[[strata]] == x,eval(parse(text=params$name))],
         typ=typ)
     })
   }
@@ -428,7 +459,6 @@ runModel <- function(dataS, dataP, params, typ) {
   if ( any(res=="try-error") ) {
     stop(paste0("Error in estimating the linear model. Try to specify a more simple model!\n"))
   }
-
   if ( typ=="multinom" ) {
     response <- dataS[[params$name]]
     valuesCat <- factor(unsplit(valuesCat, dataP[[strata]]), levels=levels(response))
@@ -613,7 +643,7 @@ runModel <- function(dataS, dataP, params, typ) {
 #' @note The basic household structure and any other categorical predictors
 #' need to be simulated beforehand with the functions
 #' \code{\link{simStructure}} and \code{\link{simCategorical}}, respectively.
-#' @author Bernhard Meindl and Andreas Alfons (based on code by Stefan Kraft)
+#' @author Bernhard Meindl, Andreas Alfons, Alexander Kowarik (based on code by Stefan Kraft)
 #' @seealso \code{\link{simStructure}}, \code{\link{simCategorical}},
 #' \code{\link{simComponents}}, \code{\link{simEUSILC}}
 #' @keywords datagen
@@ -768,11 +798,11 @@ simContinuous <- function(simPopObj, additional = "netIncome",
 
   # variables are coerced to factors
   select <- unique(c(predNames, strata)) # strata always included
-  dataS <- checkFactor(dataS, select)
+#  dataS <- checkFactor(dataS, select)
   if(!strata%in%colnames(dataP)){
     stop(strata," is defined as by variable, but not in the population data set.")
   }
-  dataP <- checkFactor(dataP, select)
+#  dataP <- checkFactor(dataP, select)
 
   # sample data of variable to be simulated
   additionalS <- dataS[[additional]]
@@ -1058,7 +1088,6 @@ simContinuous <- function(simPopObj, additional = "netIncome",
     } else {
       dataPop <- dataP
     }
-
     ## trim data (if specified)
     if ( !is.null(alpha) ) {
       additional <- additional[1]

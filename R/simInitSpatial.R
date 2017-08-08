@@ -19,14 +19,33 @@
 #' the broader region. This variable must be available in the input
 #' \code{tspatial} as well as in the sample and population slots of input
 #' \code{simPopObj}.
-#' @param tspatial a data.frame containing three columns. The broader region
+#' @param tspatialP a  data.frame (or data.table) containing three columns. The broader region
 #' (with the variable name being the same as in input \code{region}, the
 #' smaller geographical units (with the variable name being the same as in
-#' input \code{additional} and a third column containing a numeric vector
-#' holding counts.))
+#' input \code{additional}) and a third column containing a numeric vector
+#' holding counts of persons. This argument or tspatialHH has to be provided.
+#' 
+#' @param tspatialHH a  data.frame (or data.table) containing three columns. The broader region
+#' (with the variable name being the same as in input \code{region}, the
+#' smaller geographical units (with the variable name being the same as in
+#' input \code{additional}) and a third column containing a numeric vector
+#' holding counts of households. This argument or tspatialP has to be provided.
+#'
+#' @param eps relative deviation of person counts if person and household counts are provided
+#' @param maxIter maximum number of iteration for adjustment
+#' if person and household counts are provided 
+#' @param nr_cpus if specified, an integer number defining the number of cpus
+#' that should be used for parallel processing.
+#' @param seed optional; an integer value to be used as the seed of the random
+#' number generator, or an integer vector containing the state of the random
+#' number generator to be restored.
+#' @param verbose TRUE/FALSE if some information should be shown during the process
 #' @return An object of class \code{\linkS4class{simPopObj}} with an additional
 #' variable in the synthetic population slot.
-#' @author Bernhard Meindl
+#' @author Bernhard Meindl and Alexander Kowarik
+#' @references 
+#' M. Templ, B. Meindl, A. Kowarik, A. Alfons, O. Dupriez (2017) Simulation of Synthetic Populations for Survey Data Considering Auxiliary
+#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. doi: 10.18637/jss.v079.i10
 #' @keywords manip
 #' @export
 #' @examples
@@ -55,45 +74,136 @@
 #'   invisible(out)
 #' }
 #' 
-#' eusilcP <- simulate_districts(eusilcP)
-#' table(eusilcP$district)
-#' 
-#' # we generate a synthetic population
-#' inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
-#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "rb090"))
-#' 
+#' eusilcP <- data.table(simulate_districts(eusilcP))
 #' # we generate the input table using the broad region (variable 'region')
 #' # and the districts, we have generated before.
-#' # we
-#' tab <- as.data.frame(xtabs(rep(1, nrow(eusilcP)) ~ eusilcP$region + eusilcP$district))
-#' colnames(tab) <- c("db040", "district", "Freq")
+#' #Generate table with household counts by district
+#' tabHH <- eusilcP[!duplicated(hid),.(Freq=.N),by=.(db040=region,district)]
+#' setkey(tabHH,db040,district)
+#' #Generate table with person counts by district
+#' tabP <- eusilcP[,.(Freq=.N),by=.(db040=region,district)]
+#' setkey(tabP,db040,district)
 #' 
-#' simPopObj <- simInitSpatial(simPopObj, additional="district", region="db040", tspatial=tab)
+#' # we generate a synthetic population
+#' setnames(eusilcP,"region","db040")
+#' setnames(eusilcP,"hid","db030")
+#' inp <- specifyInput(data=eusilcP, hhid="db030", hhsize="hsize", strata="db040",population=TRUE)
+#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
+#' \dontrun{
+#' # use only HH counts
+#' simPopObj1 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
+#' tspatialP=NULL)
 #' 
-simInitSpatial <- function(simPopObj, additional, region, tspatial) {
+#' # use only P counts
+#' simPopObj2 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=NULL,
+#' tspatialP=tabP)
+#' 
+#' # use P and HH counts
+#' simPopObj3 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
+#' tspatialP=tabP)
+#' }
+#' 
+simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatialHH=NULL, 
+    eps=0.05, maxIter=100, nr_cpus= NULL, seed=1, verbose = FALSE) {
   # simplified version of generateValues_distribution
   generateValues_spatial <- function(dataTable, dataPop, params) {
-    if( !nrow(dataTable) ) {
-      return(character())
+    # if there is only one subregion in the region
+    if( nrow(dataTable) == 1) {
+      return(rep(dataTable[[params$additional]],nrow(dataPop)))      
     }
-    grid <- expand.grid(dataTable[,params$additional])
+    #give a new name to hhid
+    setnames(dataPop,params$predNames,"hhidtmp")
+    if(!"freqP"%in%colnames(dataTable)){#Case1: only HH counts provided
+      subregion <- sample(rep(dataTable[[params$additional]],times=dataTable[,ceiling(freqPopHH*freqH/sum(freqH))])
+      )[1:sum(!duplicated(dataPop[[1]]))]
+      dataPop[!duplicated(hhidtmp),subregion:=subregion]
+      dataPop[,subregion:=head(subregion,1),by=hhidtmp]
+      return(dataPop[["subregion"]])
     
-    # percentages
-    perc <- dataTable$freq / sum(dataTable$freq)
-    
-    # draw and exapand
-    sizes <- dataPop[,.N, key(dataPop)]
-    sim <- rep(sample(grid[,1], nrow(sizes), prob=perc, replace=TRUE), sizes$N)
-    sim
+    }else if(!"freqH"%in%colnames(dataTable)){#Case2: only P counts provided
+      setnames(dataTable,colnames(dataTable)[2],"subregion")
+      dataPop[,subregion:=sample(dataTable[["subregion"]],size=1,prob=dataTable[["freqP"]],
+              replace=TRUE),by=hhidtmp]
+      dataPop[,.N,by=subregion]
+      dataPop[,hsize:=.N,by=hhidtmp]
+      meanHH <- dataPop[,mean(hsize)]
+      curTab <- merge(dataTable[,list(freqP,subregion)],
+          dataPop[,list(nP=.N),by=subregion],by="subregion")
+      curTab[,diff:=nP-freqP]
+      curTab[,diffp:=diff/freqP]
+      setkey(curTab,diffp)
+      if(any(abs(curTab[["diffp"]]>eps))){
+        dataPop[,firstP:=!duplicated(hhidtmp)]
+        for(i in 1:maxIter){
+          s <- curTab[nrow(curTab),abs(round(diff/meanHH))]
+          x1 <- sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],size=s)
+          tmp <- data.table(hhidtmp=x1,subregionNeu=
+                  sample(curTab[diff<0,subregion],size=length(x1),prob=curTab[diff<0,-diff],replace=TRUE))
+          dataPop <- merge(dataPop,tmp,by="hhidtmp",all.x=TRUE)
+          dataPop[!is.na(subregionNeu),subregion:=subregionNeu]
+          dataPop[,subregionNeu:=NULL]
+          curTab <- merge(dataTable[,list(freqP,subregion)],
+              dataPop[,list(nP=.N),by=subregion],by="subregion")
+          curTab[,diff:=nP-freqP]
+          curTab[,diffp:=diff/freqP]
+          setkey(curTab,diffp)
+          if(!any(abs(curTab[["diffp"]]>eps))){
+            break;#End for loop if we are close enough
+          }
+        }  
+      }
+      
+      return(dataPop[["subregion"]])
+    }else{#Case3: P and HH counts are provided
+      #Initialize the subregion based on the HH counts
+      setnames(dataTable,colnames(dataTable)[2],"subregion")
+      dataPop[,hsize:=.N,by=hhidtmp]
+      meanHH <- dataPop[,mean(hsize)]
+      subregion <- sample(rep(dataTable[,subregion],times=dataTable[,ceiling(freqPopHH*freqH/sum(freqH))])
+      )[1:sum(!duplicated(dataPop[[1]]))]
+      dataPop[!duplicated(hhidtmp),subregion:=subregion]
+      dataPop[,subregion:=head(subregion,1),by=hhidtmp]
+      #current table
+      curTab <- merge(dataTable[,list(freqH,freqP,subregion)],
+          dataPop[,list(nP=.N),by=subregion],by="subregion")
+      curTab[,diff:=nP-freqP]
+      curTab[,diffp:=diff/freqP]
+      setkey(curTab,diffp)
+      
+      if(any(abs(curTab[["diffp"]]>eps))){
+        dataPop[,firstP:=!duplicated(hhidtmp)]
+        for(i in 1:maxIter){
+          s <- curTab[1,abs(round(diff/meanHH))]
+          x1 <- sample(dataPop[subregion==curTab[1,subregion]&firstP,hhidtmp],size=s,prob=1/dataPop[subregion==curTab[1,subregion]&firstP,hsize],replace=TRUE)
+          x2 <- sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],size=s,prob=dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hsize],replace=TRUE)
+          dataPop[hhidtmp%in%x2,subregion:=curTab[1,subregion]]
+          dataPop[hhidtmp%in%x1,subregion:=curTab[nrow(curTab),subregion]]
+          curTab <- merge(dataTable[,list(freqH,freqP,subregion)],
+              dataPop[,list(nP=.N),by=subregion],by="subregion")
+          curTab[,diff:=nP-freqP]
+          curTab[,diffp:=diff/freqP]
+          setkey(curTab,diffp)
+          if(!any(abs(curTab[["diffp"]]>eps))){
+            break;#End for loop if we are close enough
+          }
+        }  
+      }
+      return(dataPop[,subregion])
+    }
   }
   
   x <- NULL
+  diffp <- firstP <- freqH <- freqP <- freqPopHH <- NULL
+  hhidtmp <- hsize <- nP <- t <- subregionNeu <- NULL
+  Ns <- Nt <- fak <- NULL
   dataP <- simPopObj@pop
   dataS <- simPopObj@sample
   data_pop <- dataP@data
   data_sample <- dataS@data
   basic <- simPopObj@basicHHvars
 
+  
+  
   if ( length(additional) != 1 ) {
     stop("currently exactly one additional spatial variable can be generated!\n")
   }
@@ -103,50 +213,75 @@ simInitSpatial <- function(simPopObj, additional, region, tspatial) {
   if ( additional %in% colnames(data_pop) ) {
     stop("variable specified in argument 'additional' already exists in the population!\n")
   }
-  if ( ncol(tspatial) != 3 ) {
-    stop("please check input 'tspatial'! It must have exactly 3 columns!\n")
+  if (is.null(tspatialHH)&&is.null(tspatialP)){
+    stop("The input for simInitSpatial argument tspatial has changed to tspatialP and tspatialHH
+   , one of the 2 has to be defined at least!\n")
   }
-  
-  freqs <- tspatial[,ncol(tspatial)]
-  if ( !is.numeric(freqs) ) {
-    stop("last column of input table must contain numeric values!\n")
+  if(!is.null(tspatialHH)){
+    tspatialHH <- data.table(tspatialHH)
+    if(ncol(tspatialHH)!=3) {
+      stop("please check input 'tspatialHH'! Each list element must have exactly 3 columns!\n")
+    }
+    if(!is.numeric(tspatialHH[[3]])){
+      stop("the last and third column of input table tspatialHH must contain numeric values!\n")
+    }
+    
   }
-  tspatial <- tspatial[,-ncol(tspatial), drop=F]
-  
-  m <- match(additional, colnames(tspatial))
-  if ( is.na(m) ) {
-    stop("variable specified in argument 'additional' (",additional,") is not available in input table 'tspatial'!\n")
-  }
-  add <- tspatial[,m]
-  
-  m <- match(region, colnames(tspatial))
-  if ( is.na(m) ) {
-    stop("variable specified in argument 'additional' (",region,") is not available in input table 'tspatial'!\n")
-  }
-  reg <- tspatial[,m]
-  
-  # check other variables levels
-  m <- match(region, colnames(data_pop))
-  if ( is.na(m) ) {
-    stop("variable listed in argument 'region' is not available in the synthetic population data of of input 'simPopObj'!\n")
-  }
-  m <- match(region, colnames(data_sample))
-  if ( is.na(m) ) {
-    stop("variable listed in argument 'region' is not available in the sample dataset of input 'simPopObj'!\n")
-  }  
-  
-  # generation of our table
-  tab <- data.frame(reg, add, freqs)
-  colnames(tab) <- c(region, additional, "freq")  
-  
-  for ( i in 1:2 ) {
-    a <- sort(unique(as.character(tab[,i])))
-    m <- match(colnames(tab)[i], colnames(data_pop))
-    b <- sort(unique(as.character(data_pop[[m]])))    
-    if ( any(a!=b) ) {
-      stop("We fould a problem in variable ", colnames(tspatial)[i],". Values in input table and synthetic population do not match!\n")
+  if(!is.null(tspatialP)){
+    tspatialP <- data.table(tspatialP)
+    if(!is.numeric(tspatialP[[3]])){
+      stop("the last and third column of input table tspatialP must contain numeric values!\n")
+    }
+    if(ncol(tspatialP)!=3) {
+      stop("please check input 'tspatialP'! Each list element must have exactly 3 columns!\n")
     }
   }
+  
+  # generation of our main table
+  if(!is.null(tspatialHH)){
+    tab <- tspatialHH
+    colnames(tab) <- c(region,additional,"freqH")
+    #Adjust input table to the number in the synth. population
+    NsynthHH <- data_pop[!duplicated(data_pop[[simPopObj@pop@hhid]]),list(Ns=.N),by=c(region)]
+    tab[,Nt:=sum(freqH),by=c(region)]
+    tab <- merge(NsynthHH,tab,by=region)
+    tab[,fak:=Ns/Nt]
+    tab[,freqH:=freqH*fak]
+    tab <- tab[,c(region,additional,"freqH"), with = FALSE]
+    if(!is.null(tspatialP)){
+      tab <- merge(tab,tspatialP,by=c(region,additional),all=TRUE)
+      colnames(tab) <- c(region, additional, "freqH","freqP")
+      if(any(is.na(tab[["freqH"]]+tab[["freqP"]]))){
+        stop("The table with household counts and person counts dont merge without empty cells.")
+      }
+    }
+  }else{
+    tab <- tspatialP
+    colnames(tab) <- c(region,additional,"freqP")
+  }
+  if(!is.null(tspatialP)){
+    cn <- colnames(tab)
+    tab[,Nt:=sum(freqP),by=c(region)]
+    NsynthP <- data_pop[,list(Ns=.N),by=c(region)]
+    tab <- merge(tab,NsynthP,by=region)
+    tab[,fak:=Ns/Nt]
+    tab[,freqP:=freqP*fak]
+    tab <- tab[,c(cn),with=FALSE]
+  }
+  if(verbose){
+    cat("The table used for generating the new variable has",nrow(tab),"rows:\n")
+    print(tab)
+  }
+
+  tab <- merge(tab,data_pop[,list(freqPopP=.N,freqPopHH=sum(!duplicated(eval(parse(text=dataP@hhid))))),by=c(region)],by=region,all=TRUE)
+  # Check if the input table match to the synthetic population
+  if(any(is.na(rowSums(tab[,na.omit(match(c("freqP","freqH","freqPopP","freqPopHH"),colnames(tab))),with=FALSE])))){
+    stop("The table with household counts and person counts does not merge with the population\n without empty cells.")
+  }
+  # TODO: fix the input (relative?!) if the numbers are not exactly the same
+  # to the current synthetic population
+  
+
 
   # list indStrata contains the indices of dataP split by region
   N <- nrow(data_pop)
@@ -157,15 +292,50 @@ simInitSpatial <- function(simPopObj, additional, region, tspatial) {
   
   params <- list()
   params$additional <- additional
+  params$predNames <- predNames
+  params$eps <- eps
+  params$maxIter <- maxIter
   
-  values <- lapply(levels(data_sample[[region]]), function(x) {
-    generateValues_spatial(
-      dataTable=subset(tab, tab[,region]==x),
-      dataPop=data_pop[indStrata[[x]], predNames, with=F], params)
-  })
+  pp <- parallelParameters(nr_cpus=nr_cpus, nr_strata=length(levels(data_sample[[region]])))
+  parallel <- pp$parallel
+  nr_cores <- pp$nr_cores
+  have_win <- pp$have_win; rm(pp)
+  
+  if ( !missing(seed) ) {
+    set.seed(seed,"L'Ecuyer")  # set seed of random number generator
+  }
+  
+  if ( parallel ) {
+    # windows
+    if ( have_win ) {
+      cl <- makePSOCKcluster(nr_cores)
+      registerDoParallel(cl,cores=nr_cores)
+      values <- foreach(x=levels(data_sample[[region]]), .options.snow=list(preschedule=FALSE)) %dopar% {
+        generateValues_spatial(
+            dataTable=tab[tab[[region]]==x],
+            dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params)
+      }
+      stopCluster(cl)
+    }
+    # linux/max
+    if ( !have_win ) {
+      values <- mclapply(levels(data_sample[[region]]), function(x) {
+            generateValues_spatial(
+                dataTable=tab[tab[[region]]==x],
+                dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params)
+          }, mc.cores=nr_cores)
+    }
+  } else {
+    values <- lapply(levels(data_sample[[region]]), function(x) {
+          generateValues_spatial(
+              dataTable=tab[tab[[region]]==x],
+              dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params)
+        })  
+  }
+  names(values) <- levels(data_sample[[region]])
   
   ## add new categorical variables to data set and return
-  data_pop[[additional]] <- unlist(values)
+  data_pop[,c(additional):=values[head(eval(parse(text=region)),1)],by=c(region)]
   
   # check
   simPopObj@pop@data <- data_pop

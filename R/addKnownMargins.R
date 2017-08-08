@@ -20,6 +20,9 @@
 #' @return an object of class \code{\linkS4class{simPopObj}} with updated slot
 #' 'table'.
 #' @author Bernhard Meindl
+#' @references 
+#' M. Templ, B. Meindl, A. Kowarik, A. Alfons, O. Dupriez (2017) Simulation of Synthetic Populations for Survey Data Considering Auxiliary
+#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. doi: 10.18637/jss.v079.i10
 #' @keywords manip
 #' @export
 #' @examples
@@ -46,7 +49,7 @@ addKnownMargins <- function(inp, margins) {
   if ( any(duplicated(margins)) ) {
     stop("'margins' must not contain duplicated rows!\n")
   }
-  if ( !class(margins[,ncol(margins)]) == "numeric" ) {
+  if ( !class(margins[,ncol(margins)])[1] %in% c("integer","numeric") ) {
     stop("last column of input 'margins' must contain the numbers (must be numeric)!\n")
   } else {
     vals <- margins[,ncol(margins)]

@@ -16,7 +16,6 @@ setClassUnion('listOrNULL', c('list', 'NULL'))
 #' @import methods
 #' @import Rcpp
 #' @import party
-#' @import EnvStats
 #' @import fitdistrplus
 #' @importFrom lattice bwplot panel.bwplot packet.number panel.points panel.refline panel.xyplot
 #' @importFrom laeken calibVars
@@ -24,13 +23,14 @@ setClassUnion('listOrNULL', c('list', 'NULL'))
 #' @importFrom colorspace heat_hcl
 #' @importFrom VIM hotdeck
 #' @importFrom graphics par
-#' @importFrom stats as.formula chisq.test coef cor cov dlogis formula lm mad quantile rexp
+#' @importFrom stats as.formula chisq.test coef cor cov dlogis formula lm mad quantile rexp na.omit
 #' @importFrom utils read.csv2 tail head
 #' @importFrom stats median model.matrix optim plogis ppoints predict rnorm runif uniroot var weighted.mean glm poisson
 # removed  stats quantilerexp
 #' @importFrom plyr revalue
-#' @importFrom EnvStats rlnormTrunc
+#' @importFrom EnvStats rlnormTrunc rnormTrunc
 #' @importFrom fitdistrplus fitdist
+#' @importFrom ranger ranger
 NULL
 
 

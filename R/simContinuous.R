@@ -448,7 +448,7 @@ runModel <- function(dataS, dataP, params, typ) {
        }
       genVals(
         dataSample=dataS[dataS[[strata]] == x,c(predNames, additional), with=FALSE],
-        dataPop=dataP[indStrata[[x]], predNames, with=F],
+        dataPop=dataP[indStrata[[x]], predNames, with=FALSE],
 		params,response=dataS[dataS[[strata]] == x,eval(parse(text=params$name))],
         typ=typ)
     })
@@ -713,7 +713,7 @@ simContinuous <- function(simPopObj, additional = "netIncome",
 
   ## initializations
   if ( !missing(seed) ) {
-    set.seed(seed)
+    set.seed(seed,"L'Ecuyer")  # set seed of random number generator
   }
 
   if ( length(additional) != 1 ) {
@@ -731,7 +731,7 @@ simContinuous <- function(simPopObj, additional = "netIncome",
   if(!strata%in%colnames(dataS)){
     stop(strata," is defined as by variable, but not in the sample data set.")
   }
-  dataS <- dataS[,varNames, with=F]
+  dataS <- dataS[,varNames, with=FALSE]
 
   method <- match.arg(method)
   zeros <- isTRUE(zeros)
@@ -769,7 +769,7 @@ simContinuous <- function(simPopObj, additional = "netIncome",
   }
 
   if ( length(modelVars) > 0 & imputeMissings ) {
-    dataS_orig <- dataS[,modelVars,with=F]
+    dataS_orig <- dataS[,modelVars,with=FALSE]
     dataS <- hotdeck(dataS, variable=modelVars, domain_var=strata, imp_var=FALSE)
   }
 
@@ -901,9 +901,9 @@ simContinuous <- function(simPopObj, additional = "netIncome",
     # remove strata variable from estimation model if we are computing on multiple cores
     # else multinom fails because the variable has only one factor!
     if ( !is.null(dataS[[strata]]) ) {
-      if ( parallelParameters(nr_cpus, length(levels(dataS[[strata]])))$nr_cores > 1 ) {
+#      if ( parallelParameters(nr_cpus, length(levels(dataS[[strata]])))$nr_cores > 1 ) {
         estimationModel <- gsub(paste0("[+]",strata),"",estimationModel)
-      }
+#      }
     }
   }
 

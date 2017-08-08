@@ -17,7 +17,7 @@ generateValues <- function(dataSample, dataPop, params) {
     invisible(unlist(head(dataSample[,cur.var,with=FALSE],1)))
   }else{
     # temporarily recode response vector
-    dataSample[,cur.var:=cleanFactor(.SD),.SDcols=cur.var,with=FALSE]
+    dataSample[,(cur.var):=cleanFactor(.SD),.SDcols=cur.var]
     levelsResponse <- levels(unlist(dataSample[,cur.var,with=FALSE]))
 
     #indices for unique occurence
@@ -56,7 +56,7 @@ generateValues <- function(dataSample, dataPop, params) {
     ind <- match(colnames(newdata), colnames(dataSample))
     for ( i in 1:length(ind) ) {
       if (is.factor(unlist(newdata[,i,with=FALSE]))) {
-        newdata[,colnames(newdata)[i]:=factor(as.character(unlist(newdata[,colnames(newdata)[i],with=FALSE])),levels(dataSample[[ind[i]]])),with=FALSE]
+        newdata[,colnames(newdata)[i]:=factor(as.character(unlist(newdata[,colnames(newdata)[i],with=FALSE])),levels(dataSample[[ind[i]]]))]
       }
     }
 
@@ -141,14 +141,14 @@ generateValues_distribution <- function(dataSample, dataPop, params) {
   }
 
   # population data
-  splitS <- split(1:nrow(dataSample), dataSample[, basic, with=F], drop=TRUE)
+  splitS <- split(1:nrow(dataSample), dataSample[, basic, with=FALSE], drop=TRUE)
   pSplit <- lapply(splitS, function(i) {
-        tmp <- tableWt(dataSample[i, additional, with=F], dataSample[[w]][i])
+        tmp <- tableWt(dataSample[i, additional, with=FALSE], dataSample[[w]][i])
         tmp <- as.data.frame(tmp)
         p <- ncol(tmp)
         tmp[, p]/sum(tmp[, p])
       })
-  splitP <- split(1:nrow(dataPop), dataPop[, basic, with=F])
+  splitP <- split(1:nrow(dataPop), dataPop[, basic, with=FALSE])
   NSplit <- sapply(splitP, length)
   # in sample, observations with NAs have been removed to fit the
   # model, hence population can have additional levels
@@ -156,7 +156,7 @@ generateValues_distribution <- function(dataSample, dataPop, params) {
   # generate realizations for each combination
   sim <- as.list(rep.int(NA, length(splitP)))
   sim[whichP] <- mapply(spSample, NSplit[whichP], pSplit, SIMPLIFY=FALSE)
-  sim <- unsplit(sim, dataPop[, basic, with=F])
+  sim <- unsplit(sim, dataPop[, basic, with=FALSE])
   sim <- grid[sim,,drop=FALSE]
   rownames(sim) <- rownames(dataPop)
   sim
@@ -247,7 +247,12 @@ generateValues_distribution <- function(dataSample, dataPop, params) {
 #' variables specified by argument \code{additional}.
 #' @note The basic household structure needs to be simulated beforehand with
 #' the function \code{\link{simStructure}}.
-#' @author Bernhard Meindl, Andreas Alfons, Stefan Kraft, Alexander Kowarik
+#' @author Bernhard Meindl, Andreas Alfons, Stefan Kraft, Alexander Kowarik, Matthias Templ
+#' @references 
+#' B. Meindl, M. Templ, A. Kowarik, O. Dupriez (2017) Simulation of Synthetic Populations for Survey Data Considering Auxiliary
+#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. doi: 10.18637/jss.v079.i10
+#' 
+#' A. Alfons, M. Templ (2011) Simulation of close-to-reality population data for household surveys with application to EU-SILC. \emph{Statistical Methods & Applications}, \strong{20} (3), 383--407.
 #' @seealso \code{\link{simStructure}}, \code{\link{simRelation}},
 #' \code{\link{simContinuous}}, \code{\link{simComponents}}
 #' @export
@@ -333,7 +338,6 @@ simCategorical <- function(simPopObj, additional,
     stop(curStrata," is defined as by variable, but not in the population data set.")
   }
   nr_strata <- length(levels(data_sample[[curStrata]]))
-  data_sample[,curStrata,with=FALSE]
   pp <- parallelParameters(nr_cpus=nr_cpus, nr_strata=nr_strata)
   parallel <- pp$parallel
   nr_cores <- pp$nr_cores
@@ -341,7 +345,7 @@ simCategorical <- function(simPopObj, additional,
 
   ##### initializations
   if ( !missing(seed) ) {
-    set.seed(seed)  # set seed of random number generator
+    set.seed(seed,"L'Ecuyer")  # set seed of random number generator
   }
 
 
@@ -436,7 +440,7 @@ simCategorical <- function(simPopObj, additional,
     predNames <- setdiff(regInput[[1]]$predNames, c(dataS@hhsize, curStrata))
 
     # observations with missings are excluded from simulation
-    exclude <- getExclude(data_sample[,c(additional,predNames),with=F])
+    exclude <- getExclude(data_sample[,c(additional,predNames),with=FALSE])
     if ( length(exclude) > 0 ) {
       sampWork <- data_sample[-exclude,]
     } else {
@@ -452,29 +456,46 @@ simCategorical <- function(simPopObj, additional,
     # simulation of variables using a sequence of multinomial models
     if ( method == "multinom" ) {
       formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))
-      formula.cmd <- paste0("suppressWarnings(multinom(", formula.cmd,
-          ", weights=", dataS@weight, ", data=dataSample, trace=FALSE",
-          ", maxit=",maxit, ", MaxNWts=", MaxNWts,"))")
+      formula.cmd <- paste0("suppressWarnings(multinom(", formula.cmd)
+      if(!dataS@ispopulation){
+        formula.cmd <- paste0(formula.cmd,", weights=", dataS@weight)
+      }
+      formula.cmd <- paste0(formula.cmd,", data=dataSample, trace=FALSE",
+                            ", maxit=",maxit, ", MaxNWts=", MaxNWts,"))")
+      
       if(verbose) cat("we are running the following multinom-model:\n")
       if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
     }else if ( method == "ctree" ) {
       # simulation via recursive partitioning and regression trees
       formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))
-      formula.cmd <- paste("suppressWarnings(ctree(", formula.cmd, ", weights=as.integer(dataSample$", dataS@weight, "), data=dataSample))", sep="")
+      formula.cmd <- paste("suppressWarnings(ctree(", formula.cmd)
+      if(!dataS@ispopulation){
+        formula.cmd <- paste0(formula.cmd,", weights=as.integer(dataSample$", dataS@weight,")")
+      }
+      formula.cmd <- paste0(formula.cmd,
+                           ", data=dataSample))")
       if(verbose) cat("we are running recursive partitioning:\n")
       if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
     }else if ( method == "cforest" ) {
       # simulation via random forest
       formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))
-      formula.cmd <- paste("suppressWarnings(cforest(", formula.cmd, ", weights=as.integer(dataSample$", dataS@weight, "), data=dataSample))", sep="")
+      formula.cmd <- paste("suppressWarnings(cforest(", formula.cmd)
+      if(!dataS@ispopulation){
+        formula.cmd <- paste0(formula.cmd,", weights=as.integer(dataSample$", dataS@weight,")")
+      }
+      formula.cmd <- paste0(formula.cmd,", data=dataSample))")
       if(verbose) cat("we are running random forest classification (cforest):\n")
       if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
     }else if ( method == "ranger" ) {
 		# simulation via random forest
-		formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))
-		formula.cmd <- paste("suppressWarnings(ranger(", formula.cmd, ", case.weights=dataSample$", dataS@weight, ", data=dataSample))", sep="")
-		if(verbose) cat("we are running random forest (ranger):\n")
-		if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
+		  formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))
+		  formula.cmd <- paste("suppressWarnings(ranger(", formula.cmd)
+		  if(!dataS@ispopulation){
+  		  formula.cmd <- paste0(formula.cmd,", case.weights=dataSample$", dataS@weight)
+	  	}
+  		formula.cmd <- paste0(formula.cmd, ", data=dataSample))", sep="")
+	  	if(verbose) cat("we are running random forest (ranger):\n")
+		  if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
 	}
     #if ( method == "naivebayes" ) {
     #  formula.cmd <- paste(i, "~", paste(predNames, collapse = " + "))

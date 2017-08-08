@@ -75,7 +75,7 @@ simComponents <- function(simPopObj, total="netIncome",
 
   ##### initializations
   if ( !missing(seed) ) {
-    set.seed(seed)
+    set.seed(seed,"L'Ecuyer")  # set seed of random number generator
   }
 
   dataP <- simPopObj@pop@data
@@ -94,7 +94,7 @@ simComponents <- function(simPopObj, total="netIncome",
 
   # check data
   if ( all(varNames %in% colnames(dataS)) ) {
-    dataS <- dataS[, varNames, with=F]
+    dataS <- dataS[, varNames, with=FALSE]
   } else {
     stop("undefined variables in the sample data!\n")
   }

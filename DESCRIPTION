@@ -2,18 +2,18 @@ Package: simPop
 Type: Package
 Title: Simulation of Synthetic Populations for Survey Data Considering
         Auxiliary Information
-Version: 1.0.0
-Date: 2017-08-07
-Author: Bernhard Meindl, Matthias Templ, Andreas Alfons, Alexander Kowarik, and
-    with contributions from Mathieu Ribatet
+Version: 1.1.0
+Date: 2018-04-17
+Author: Bernhard Meindl, Matthias Templ, Andreas Alfons, Alexander Kowarik and
+    with contributions from Mathieu Ribatet, Johannes Gussenbauer and Gregor De Cillia
 Maintainer: Matthias Templ <matthias.templ@gmail.com>
 URL: https://github.com/statistikat/simPop
 Depends: R(>= 3.0.0), lattice, vcd, data.table
-Imports: laeken, plyr, MASS, Rcpp (>= 0.11.0), e1071, parallel, nnet,
-        doParallel, foreach, colorspace, VIM,
-        methods,party,EnvStats,fitdistrplus,ranger
-Suggests: haven, microbenchmark, stringr
-LinkingTo: Rcpp
+Imports: laeken, plyr, MASS, Rcpp (>= 0.11.0),RcppArmadillo, e1071,
+        parallel, nnet, doParallel, foreach, colorspace, VIM,
+        methods,party,EnvStats,fitdistrplus,ranger,wrswoR
+Suggests: haven, microbenchmark, stringr, testthat, reshape2
+LinkingTo: Rcpp,RcppArmadillo
 Description: Tools and methods to simulate populations for surveys based
     on auxiliary data. The tools include model-based methods, calibration and
     combinatorial optimization algorithms. The package was developed with support of
@@ -24,17 +24,18 @@ LazyLoad: yes
 ByteCompile: TRUE
 Collate: '0classes.R' 'addKnownMargins.R' 'addWeights.r' 'calibPop.R'
         'calibSample.R' 'calibVars.R' 'contingencyWt.R' 'correctHeap.R'
-        'fitGPD.R' 'getBreaks.R' 'getCat.R' 'ipu.r' 'ipu2.r' 'meanWt.R'
-        'printFunctions.R' 'quantileWt.R' 'sampHH.R' 'silcTools.R'
-        'silcTools2.R' 'simCategorical.R' 'simComponents.R'
-        'simContinuous.R' 'simEUSILC.R' 'simGPD.R' 'simInitSpatial.R'
-        'simple_dis.R' 'simPop-package.R' 'simRelation.R'
-        'simStructure.R' 'spBwplot.R' 'spBwplotStats.R' 'spCdf.R'
-        'spCdfplot.R' 'spMosaic.R' 'spPredict.R' 'spSample.R'
+        'fitGPD.R' 'getBreaks.R' 'getCat.R' 'ipu.r'
+        'numericalWeighting.R' 'ipu2.r' 'meanWt.R' 'printFunctions.R'
+        'quantileWt.R' 'sampHH.R' 'RcppExports.R' 'silcTools.R'
+        'silcTools2.R' 'simAnnealingDT.R' 'simCategorical.R'
+        'simComponents.R' 'simContinuous.R' 'simEUSILC.R' 'simGPD.R'
+        'simInitSpatial.R' 'simple_dis.R' 'simPop-package.R'
+        'simRelation.R' 'simStructure.R' 'spBwplot.R' 'spBwplotStats.R'
+        'spCdf.R' 'spCdfplot.R' 'spMosaic.R' 'spPredict.R' 'spSample.R'
         'spTable.R' 'specifyInput.R' 'sprague.R' 'tableWt.R'
         'utility.R' 'utils.R' 'whipple.R' 'dataSets.R' 'zzz.R'
 RoxygenNote: 6.0.1
 NeedsCompilation: yes
-Packaged: 2017-08-08 08:31:18 UTC; teml
+Packaged: 2018-04-17 14:07:31 UTC; kowarik
 Repository: CRAN
-Date/Publication: 2017-08-08 13:27:38 UTC
+Date/Publication: 2018-04-17 16:20:32 UTC

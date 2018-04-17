@@ -51,8 +51,6 @@ calcFinalWeights <- function(data0, totals0, params) {
   invisible(w)
 }
 
-
-
 #' Calibration of 0/1 weights by Simulated Annealing
 #'
 #' A Simulated Annealing Algorithm for calibration of synthetic population data
@@ -85,7 +83,7 @@ calcFinalWeights <- function(data0, totals0, params) {
 #' @name calibPop
 #' @docType data
 #' @param inp an object of class \code{\linkS4class{simPopObj}} with slot
-#' 'table' being non-null! (see \code{\link{addKnownMargins}}.
+#' 'table' being non-null! (see \code{\link{addKnownMargins}}).
 #' @param split given strata in which the problem will be split. Has to
 #' correspond to a column population data (slot 'pop' of input argument 'inp')
 #' . For example \code{split = c("region")}, problem will be split for
@@ -94,7 +92,7 @@ calcFinalWeights <- function(data0, totals0, params) {
 #' @param temp starting temperatur for simulated annealing algorithm
 #' @param eps.factor a factor (between 0 and 1) specifying the acceptance
 #' error. For example eps.factor = 0.05 results in an acceptance error for the
-#' objective function of 0.05*sum(totals)
+#' objective function of \code{0.05*sum(totals)}.
 #' @param maxiter maximum iterations during a temperature step.
 #' @param temp.cooldown a factor (between 0 and 1) specifying the rate at which
 #' temperature will be reduced in each step.
@@ -108,12 +106,24 @@ calcFinalWeights <- function(data0, totals0, params) {
 #' provided, however only if \code{split} is NULL. Otherwise the computation is
 #' performed in parallel and no useful output can be provided.
 #' @param sizefactor the factor for inflating the population before applying 0/1 weights
+#' @param memory if TRUE simulated annealing is applied in less memory intensive way. Is especially usefull if factor or population is large. For this option simulated annealing is not entirely implemented in C++, therefore it might be slower than option \code{memory=FALSE}.
+#' @param choose.temp if TRUE \code{temp} will be rescaled according to \code{eps} and \code{choose.temp.factor}. \code{eps} is defined by the product between \code{eps_factore} and the sum over the target population margins, see \code{\link{addKnownMargins}}. Only used if \code{memory=TRUE}.
+#' @param choose.temp.factor number between (0,1) for rescaling \code{temp} for simulated annealing. \code{temp} redefined by\code{max(temp,eps*choose.temp.factor)}.
+#' Can be usefull if simulated annealing is split into subgroups with considerably different population sizes. Only used if \code{choose.temp=TRUE} and \code{memory=TRUE}.
+#' @param scale.redraw Only used if \code{memory=TRUE}. Number between (0,1) scaling the number of households that need to be drawn and discarded in each iteration step.
+#' The number of individuals currently selected through simulated annealing is substracted from the sum over the target population margins added to \code{inp} via \code{addKnownMargins}.
+#' This difference is divided by the median household size resulting in an estimated number of housholds that the current synthetic population differs from the population margins (~\code{redraw_gap}).
+#' The next iteration will then adjust the number of housholds to be drawn or discarded (\code{redraw}) according to \code{max(ceiling(redraw-redraw_gap*scale.redraw),1)} or \code{max(ceiling(redraw+redraw_gap*scale.redraw),1)} respectively.
+#' This keeps the number of individuals in the synthetic population relatively stable regarding the population margins. Otherwise the synthetic population might be considerably larger or smaller then the population margins, through selection of many large or small households.
+#' @param observe.times Only used if \code{memory=TRUE}. Number of times the new value of the objective function is saved. If \code{observe.times=0} values are not saved.
+#' @param observe.break Only used if \code{memory=TRUE}. When objective value has been saved \code{observe.times}-times the coefficient of variation is calculated over saved values; if the coefficient of variation falls below \code{observe.break}
+#' simmulated annealing terminates. This repeats for each new set of \code{observe.times} new values of the objecive function. Can help save run time if objective value does not improve much. Disable this termination by either setting \code{observe.times=0} or \code{observe.break=0}.
 #' @return Returns an object of class \code{\linkS4class{simPopObj}} with an
 #' updated population listed in slot 'pop'.
 #' @author Bernhard Meindl, Johannes Gussenbauer and Matthias Templ
 #' @references 
 #' M. Templ, B. Meindl, A. Kowarik, A. Alfons, O. Dupriez (2017) Simulation of Synthetic Populations for Survey Data Considering Auxiliary
-#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. doi: 10.18637/jss.v079.i10
+#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. \doi{10.18637/jss.v079.i10}
 #' @keywords datasets
 #' @export
 #' @examples
@@ -130,16 +140,21 @@ calcFinalWeights <- function(data0, totals0, params) {
 #'   xtabs(rep(1, nrow(eusilcP)) ~ eusilcP$region + eusilcP$gender + eusilcP$citizenship))
 #' colnames(margins) <- c("db040", "rb090", "pb220a", "freq")
 #' simPop <- addKnownMargins(simPop, margins)
+#' simPop_adj2 <- calibPop(simPop, split="db040", temp=1, eps.factor=0.1,memory=TRUE)
 #' }
-#'
 #' # apply simulated annealing
 #' \dontrun{
 #' ## long computation time
-#' simPop_adj <- calibPop(simPop, split="db040", temp=1, eps.factor=0.1)
+#' simPop_adj <- calibPop(simPop, split="db040", temp=1, eps.factor=0.1,memory=FALSE)
 #' }
 calibPop <- function(inp, split, temp = 1, eps.factor = 0.05, maxiter=200,
-  temp.cooldown = 0.9, factor.cooldown = 0.85, min.temp = 10^-3, nr_cpus=NULL, sizefactor=2 ,verbose=FALSE) {
-
+  temp.cooldown = 0.9, factor.cooldown = 0.85, min.temp = 10^-3,
+  nr_cpus=NULL, sizefactor=2, memory=TRUE,
+  choose.temp=TRUE,choose.temp.factor=0.2,scale.redraw=.5,observe.times=50,observe.break=0.05,
+  verbose=FALSE) {
+  if(verbose){
+    t0 <- Sys.time()
+  }
   if ( class(inp) != "simPopObj" ) {
     stop("argument 'inp' must be of class 'simPopObj'!\n")
   }
@@ -149,7 +164,7 @@ calibPop <- function(inp, split, temp = 1, eps.factor = 0.05, maxiter=200,
     warning("only first variable will be used to divide the population into strata")
   }
 
-  temporaryhid <- x <- NULL
+  hid_help <- doub <- new.weights <- temporaryhid <- x <- NULL
   data <- popData(inp)
   hid <- popObj(inp)@hhid
   pid <- popObj(inp)@pid
@@ -184,24 +199,45 @@ calibPop <- function(inp, split, temp = 1, eps.factor = 0.05, maxiter=200,
   params$hhid <- hid
   params$pid <- pid
   params$hhsize <- hhsize
-
-  # generate donors
-  data2 <- sampHH(data, sizefactor=sizefactor, hid=hid, strata=split, hsize=hhsize)
-  data2[,(params$weight):=list(0)]
-  setnames(data2,hid,"temporaryhid")
-  if(is.numeric(data2[[hid]])){
-    data2[,hid:=list(data[,sapply(.SD,max),.SDcols=hid]+temporaryhid)]
+  
+  if(!memory){
+    # generate donors
+    data2 <- sampHH(data, sizefactor=sizefactor, hid=hid, strata=split, hsize=hhsize)
+    data2[,(params$weight):=list(0)]
+    setnames(data2,hid,"temporaryhid")
+    if(is.numeric(data2[[hid]])){
+      data2[,hid:=list(data[,sapply(.SD,max),.SDcols=hid]+temporaryhid)]
+    }else{
+      data2[,hid:=list(paste0("9999_",temporaryhid))]
+    }
+    setnames(data2,"temporaryhid",hid)
+    #  data2 <- data2[, which(!grepl(hid, colnames(data2))), with=FALSE]
+    cn <- colnames(data2)
+    #  cn[length(cn)] <- hid
+    #  setnames(data2, cn)
+    data2 <- data2[,colnames(data), with=FALSE]
+    #data2 <- data2[,match(colnames(data), cn), with=FALSE]
+    data <- rbind(data, data2)
   }else{
-    data2[,hid:=list(paste0("9999_",temporaryhid))]
+    # check params for memory=TRUE
+    if(!is.numeric(choose.temp.factor)){
+      stop("choose.temp.factor must be numeric!")
+    }
+    choose.temp.factor <- choose.temp.factor[1]
+    if(choose.temp.factor<=0|choose.temp.factor>=1){
+      cat("choose.temp.factor must be in (0,1)\n Setting choose.temp.factor to default value of 0.2")
+      choose.temp.factor <- .2
+    }
+    if(!is.numeric(scale.redraw)){
+      stop("scale.redraw must be numeric!")
+    }
+    scale.redraw <- scale.redraw[1]
+    if(scale.redraw<=0|scale.redraw>=1){
+      cat("scale.redraw must be in (0,1)\n Setting scale.redraw to default value of 0.5")
+      scale.redraw <- .5
+    }
   }
-  setnames(data2,"temporaryhid",hid)
-#  data2 <- data2[, which(!grepl(hid, colnames(data2))), with=FALSE]
-  cn <- colnames(data2)
-#  cn[length(cn)] <- hid
-#  setnames(data2, cn)
-  data2 <- data2[,colnames(data), with=FALSE]
-  #data2 <- data2[,match(colnames(data), cn), with=FALSE]
-  data <- rbind(data, data2)
+
 
   # parameters for parallel computing
   nr_strata <- length(unique(data[[split]]))
@@ -224,36 +260,87 @@ calibPop <- function(inp, split, temp = 1, eps.factor = 0.05, maxiter=200,
     if ( have_win ) {
       cl <- makePSOCKcluster(nr_cores)
       registerDoParallel(cl,cores=nr_cores)
-      final_weights <- foreach(x=1:nrow(split.number), .options.snow=list(preschedule=TRUE)) %dopar% {
-        calcFinalWeights(
-          data0=data[split.number[x]],
-          totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
-          params=params
-        )
+      if(memory){
+        final_weights <- foreach(x=1:nrow(split.number), .options.snow=list(preschedule=TRUE)) %dopar% {
+          simAnnealingDT(
+            data0=data[split.number[x]],
+            totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
+            params=params,sizefactor=sizefactor,choose.temp=choose.temp,
+            choose.temp.factor=choose.temp.factor,scale.redraw=scale.redraw,
+            split.level=paste0(unlist(split.number[x])),observe.times=observe.times,observe.break=observe.break)
+        }
+      }else{
+        final_weights <- foreach(x=1:nrow(split.number), .options.snow=list(preschedule=TRUE)) %dopar% {
+          calcFinalWeights(
+            data0=data[split.number[x]],
+            totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
+            params=params
+          )
+        }
       }
       stopCluster(cl)
     }else if ( !have_win ) {# linux/mac
-      final_weights <- mclapply(1:nrow(split.number), function(x) {
+      if(memory){
+        final_weights <- mclapply(1:nrow(split.number), function(x) {
+          simAnnealingDT(
+            data0=data[split.number[x]],
+            totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
+            params=params,sizefactor=sizefactor,choose.temp=choose.temp,
+            choose.temp.factor=choose.temp.factor,scale.redraw=scale.redraw,
+            split.level=paste0(unlist(split.number[x])),observe.times=observe.times,observe.break=observe.break)
+        },mc.cores=nr_cores)
+      }else{
+        final_weights <- mclapply(1:nrow(split.number), function(x) {
+          calcFinalWeights(
+            data0=data[split.number[x]],
+            totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
+            params=params)
+        },mc.cores=nr_cores)
+      }
+    }
+  } else {
+    if(memory){
+      # use memory efficient but slower method
+      final_weights <- lapply(1:nrow(split.number), function(x) {
+        out <- simAnnealingDT(
+          data0=data[split.number[x]],
+          totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
+          params=params,sizefactor=sizefactor,choose.temp=choose.temp,
+          choose.temp.factor=choose.temp.factor,scale.redraw=scale.redraw,
+          split.level=paste0(unlist(split.number[x])),observe.times=observe.times,observe.break=observe.break)
+        return(out)
+      })
+    }else{
+      # use c++ implementation - can be quite memory intensive
+      final_weights <- lapply(1:nrow(split.number), function(x) {
         calcFinalWeights(
           data0=data[split.number[x]],
           totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
           params=params)
-      },mc.cores=nr_cores)
+      })
     }
-  } else {
-    final_weights <- lapply(1:nrow(split.number), function(x) {
-      calcFinalWeights(
-        data0=data[split.number[x]],
-        totals0=totals[which(totals[,split,with=FALSE]==as.character(split.number[x][[split]])),],
-        params=params)
-    })
   }
+
   # return dataset with new weights
-  data$new.weights <- as.integer(unlist(final_weights))
-  data <- data[data$new.weights==1,]
-  data[[inp@pop@weight]] <- data$new.weights
-  data$new.weights <- NULL
+  data[,new.weights:=as.integer(unlist(final_weights))]
+  if(memory){
+    data <- data[new.weights>0,]
+    data <- rbind(data[new.weights==1],data[new.weights>1,.SD[rep(1:.N,new.weights)]])
+    data[,doub:=1:.N,by=c(params[["pid"]],params[["hhid"]])]
+    data[,hid_help:=paste(get(params[["hhid"]]),doub,sep="_")]
+    data[,c(params[["hhid"]]):=.GRP,by=hid_help]
+    data[,c(params[["pid"]]):=paste(get(params[["hhid"]]),gsub("^[[:digit:]]*.","",get(params[["pid"]])),sep=".")]
+    data[,c("new.weights","doub","hid_help"):=NULL]
+  }else{
+    data <- data[data$new.weights==1,]
+    data[[inp@pop@weight]] <- data$new.weights
+    data$new.weights <- NULL
+  }
+
   inp@pop@data <- data
+  if(verbose){
+    Sys.time()-t0
+  }
   invisible(inp)
 }
 NULL

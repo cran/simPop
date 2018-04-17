@@ -644,6 +644,12 @@ runModel <- function(dataS, dataP, params, typ) {
 #' need to be simulated beforehand with the functions
 #' \code{\link{simStructure}} and \code{\link{simCategorical}}, respectively.
 #' @author Bernhard Meindl, Andreas Alfons, Alexander Kowarik (based on code by Stefan Kraft)
+#' @references 
+#' B. Meindl, M. Templ, A. Kowarik, O. Dupriez (2017) Simulation of Synthetic Populations for Survey Data Considering Auxiliary
+#' Information. \emph{Journal of Statistical Survey}, \strong{79} (10), 1--38. \doi{10.18637/jss.v079.i10}
+#' 
+#' A. Alfons, M. Templ (2011) Simulation of close-to-reality population data for household surveys with application to EU-SILC. 
+#' \emph{Statistical Methods & Applications}, \strong{20} (3), 383--407. \doi{10.1080/02664763.2013.859237}
 #' @seealso \code{\link{simStructure}}, \code{\link{simCategorical}},
 #' \code{\link{simComponents}}, \code{\link{simEUSILC}}
 #' @keywords datagen
@@ -1100,7 +1106,7 @@ simContinuous <- function(simPopObj, additional = "netIncome",
       # contained in sample after trimming
       # if not, trimming is not applied and a warning message is generated
       check <- unlist(sapply(predNames, function(i) {
-        table(dataS[[i]]) > 0 & table(dataSample[[i]]) == 0
+        table(dataS[[i]]) > 0 & table(dataS[[i]]) == 0
       }))
       if ( any(check) ) {
         dataSample <- dataS
@@ -1122,10 +1128,10 @@ simContinuous <- function(simPopObj, additional = "netIncome",
     # auxiliary model for all strata (used in case of empty combinations)
     weights <- dataSample[[weight]]
     if(useLm){
-      mod <- lm(formula, weights=weights, data=dataSample)
+      mod <- lm(formula, weights=weights, data=dataSample,x=FALSE,y=FALSE,model=FALSE)
       coef <- coef(mod)
     }else if(usePoisson){
-      mod <- glm(formula, weights=weights, data=dataSample,family=poisson())
+      mod <- glm(formula, weights=weights, data=dataSample,family=poisson(),model=FALSE,x=FALSE,y=FALSE)
       coef <- coef(mod)
     }
 
@@ -1134,9 +1140,9 @@ simContinuous <- function(simPopObj, additional = "netIncome",
     params <- list()
     params$coef <- coef
     if(useLm){
-      params$command <- paste("lm(", fstring,", weights=", weight, ", data=dataSample)", sep="")
+      params$command <- paste("lm(", fstring,", weights=", weight, ", data=dataSample,x=FALSE,y=FALSE,model=FALSE)", sep="")
     }else if(usePoisson){
-      params$command <- paste("glm(", fstring,", weights=", weight, ", data=dataSample,family=poisson())", sep="")
+      params$command <- paste("glm(", fstring,", weights=", weight, ", data=dataSample,family=poisson(),model=FALSE,x=FALSE,y=FALSE)", sep="")
     }
     #params$name <- fname
     params$name <- additional
@@ -1233,3 +1239,4 @@ simContinuous <- function(simPopObj, additional = "netIncome",
   simPopObj@pop@data <- dataP
   invisible(simPopObj)
 }
+

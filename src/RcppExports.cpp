@@ -6,104 +6,45 @@
 
 using namespace Rcpp;
 
-// combine_factors
-IntegerVector combine_factors(DataFrame& dat, CharacterVector factor_columns, bool asfactor);
-RcppExport SEXP _simPop_combine_factors(SEXP datSEXP, SEXP factor_columnsSEXP, SEXP asfactorSEXP) {
+// calibPop_work
+IntegerVector calibPop_work(IntegerMatrix inp, NumericVector totals, IntegerVector weights, List hh_info, List params);
+RcppExport SEXP _simPop_calibPop_work(SEXP inpSEXP, SEXP totalsSEXP, SEXP weightsSEXP, SEXP hh_infoSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< DataFrame& >::type dat(datSEXP);
-    Rcpp::traits::input_parameter< CharacterVector >::type factor_columns(factor_columnsSEXP);
-    Rcpp::traits::input_parameter< bool >::type asfactor(asfactorSEXP);
-    rcpp_result_gen = Rcpp::wrap(combine_factors(dat, factor_columns, asfactor));
+    Rcpp::traits::input_parameter< IntegerMatrix >::type inp(inpSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type totals(totalsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< List >::type hh_info(hh_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(calibPop_work(inp, totals, weights, hh_info, params));
     return rcpp_result_gen;
 END_RCPP
 }
-// computeLinear
-NumericVector computeLinear(double curValue, double target, const NumericVector& x, const NumericVector& w, double boundLinear);
-RcppExport SEXP _simPop_computeLinear(SEXP curValueSEXP, SEXP targetSEXP, SEXP xSEXP, SEXP wSEXP, SEXP boundLinearSEXP) {
+// binary_representation
+IntegerMatrix binary_representation(IntegerVector levels, IntegerVector values);
+RcppExport SEXP _simPop_binary_representation(SEXP levelsSEXP, SEXP valuesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type curValue(curValueSEXP);
-    Rcpp::traits::input_parameter< double >::type target(targetSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< double >::type boundLinear(boundLinearSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeLinear(curValue, target, x, w, boundLinear));
+    Rcpp::traits::input_parameter< IntegerVector >::type levels(levelsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type values(valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(binary_representation(levels, values));
     return rcpp_result_gen;
 END_RCPP
 }
-// geometric_mean_reference
-void geometric_mean_reference(NumericVector& w, const IntegerVector& classes);
-RcppExport SEXP _simPop_geometric_mean_reference(SEXP wSEXP, SEXP classesSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type classes(classesSEXP);
-    geometric_mean_reference(w, classes);
-    return R_NilValue;
-END_RCPP
-}
-// geometric_mean
-NumericVector geometric_mean(const NumericVector& w, const IntegerVector& classes);
-RcppExport SEXP _simPop_geometric_mean(SEXP wSEXP, SEXP classesSEXP) {
+// ipu_work
+NumericVector ipu_work(NumericMatrix inp, NumericVector con, NumericVector w, double eps, IntegerVector verbose);
+RcppExport SEXP _simPop_ipu_work(SEXP inpSEXP, SEXP conSEXP, SEXP wSEXP, SEXP epsSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type classes(classesSEXP);
-    rcpp_result_gen = Rcpp::wrap(geometric_mean(w, classes));
-    return rcpp_result_gen;
-END_RCPP
-}
-// arithmetic_mean
-NumericVector arithmetic_mean(const NumericVector& w, const IntegerVector& classes);
-RcppExport SEXP _simPop_arithmetic_mean(SEXP wSEXP, SEXP classesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type classes(classesSEXP);
-    rcpp_result_gen = Rcpp::wrap(arithmetic_mean(w, classes));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ipu_step_ref
-void ipu_step_ref(NumericVector w, IntegerVector classes, NumericVector targets);
-RcppExport SEXP _simPop_ipu_step_ref(SEXP wSEXP, SEXP classesSEXP, SEXP targetsSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type inp(inpSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type con(conSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type classes(classesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type targets(targetsSEXP);
-    ipu_step_ref(w, classes, targets);
-    return R_NilValue;
-END_RCPP
-}
-// ipu_step
-NumericVector ipu_step(NumericVector w, IntegerVector classes, NumericVector targets);
-RcppExport SEXP _simPop_ipu_step(SEXP wSEXP, SEXP classesSEXP, SEXP targetsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type classes(classesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type targets(targetsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ipu_step(w, classes, targets));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ipu_step_f
-NumericVector ipu_step_f(NumericVector w, IntegerVector classes, NumericVector targets);
-RcppExport SEXP _simPop_ipu_step_f(SEXP wSEXP, SEXP classesSEXP, SEXP targetsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type classes(classesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type targets(targetsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ipu_step_f(w, classes, targets));
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(ipu_work(inp, con, w, eps, verbose));
     return rcpp_result_gen;
 END_RCPP
 }

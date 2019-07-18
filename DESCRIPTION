@@ -2,17 +2,20 @@ Package: simPop
 Type: Package
 Title: Simulation of Synthetic Populations for Survey Data Considering
         Auxiliary Information
-Version: 1.1.1
-Date: 2018-05-25
-Author: Bernhard Meindl, Matthias Templ, Andreas Alfons, Alexander Kowarik and
-    with contributions from Mathieu Ribatet, Johannes Gussenbauer and Gregor De Cillia
-Maintainer: Matthias Templ <matthias.templ@gmail.com>
+Version: 1.2.0
+Authors@R: c(
+  person("Matthias", "Templ", email = "matthias.templ@gmail.com", role = c("aut","cre")),
+  person("Alexander", "Kowarik", email = "alexander.kowarik@statistik.gv.at", role = c("aut"), comment=c(ORCID="0000-0001-8598-4130")),
+  person("Bernhard", "Meindl", email = "bernhard.meindl@statistik.gv.at", role = c("aut")),
+  person("Andreas", "Alfons", role = c("aut")),
+  person("Mathieu", "Ribatet", role = c("ctb")),
+  person("Johannes", "Gussenbauer", email = "johannes.gussenbauer@statistik.gv.at", role = c("ctb")))
 URL: https://github.com/statistikat/simPop
 Depends: R(>= 3.0.0), lattice, vcd, data.table
 Imports: laeken, plyr, MASS, Rcpp (>= 0.11.0),RcppArmadillo, e1071,
         parallel, nnet, doParallel, foreach, colorspace, VIM,
         methods,party,EnvStats,fitdistrplus,ranger,wrswoR
-Suggests: haven, microbenchmark, stringr, testthat, reshape2
+Suggests: haven, microbenchmark, stringr, testthat, surveysd
 LinkingTo: Rcpp,RcppArmadillo
 Description: Tools and methods to simulate populations for surveys based
     on auxiliary data. The tools include model-based methods, calibration and
@@ -24,18 +27,26 @@ LazyLoad: yes
 ByteCompile: TRUE
 Collate: '0classes.R' 'addKnownMargins.R' 'addWeights.r' 'calibPop.R'
         'calibSample.R' 'calibVars.R' 'contingencyWt.R' 'correctHeap.R'
-        'fitGPD.R' 'getBreaks.R' 'getCat.R' 'ipu.r'
-        'numericalWeighting.R' 'ipu2.r' 'meanWt.R' 'printFunctions.R'
-        'quantileWt.R' 'sampHH.R' 'RcppExports.R' 'silcTools.R'
-        'silcTools2.R' 'simAnnealingDT.R' 'simCategorical.R'
-        'simComponents.R' 'simContinuous.R' 'simEUSILC.R' 'simGPD.R'
-        'simInitSpatial.R' 'simple_dis.R' 'simPop-package.R'
-        'simRelation.R' 'simStructure.R' 'spBwplot.R' 'spBwplotStats.R'
-        'spCdf.R' 'spCdfplot.R' 'spMosaic.R' 'spPredict.R' 'spSample.R'
-        'spTable.R' 'specifyInput.R' 'sprague.R' 'tableWt.R'
-        'utility.R' 'utils.R' 'whipple.R' 'dataSets.R' 'zzz.R'
-RoxygenNote: 6.0.1
+        'fitGPD.R' 'getBreaks.R' 'getCat.R' 'ipu.r' 'ipu2.r' 'meanWt.R'
+        'printFunctions.R' 'quantileWt.R' 'sampHH.R' 'RcppExports.R'
+        'silcTools.R' 'silcTools2.R' 'simAnnealingDT.R'
+        'simCategorical.R' 'simComponents.R' 'simContinuous.R'
+        'simEUSILC.R' 'simGPD.R' 'simInitSpatial.R' 'simple_dis.R'
+        'simPop-package.R' 'simRelation.R' 'simStructure.R'
+        'spBwplot.R' 'spBwplotStats.R' 'spCdf.R' 'spCdfplot.R'
+        'spMosaic.R' 'spPredict.R' 'spSample.R' 'spTable.R'
+        'specifyInput.R' 'sprague.R' 'tableWt.R' 'utility.R' 'utils.R'
+        'whipple.R' 'dataSets.R' 'zzz.R'
+RoxygenNote: 6.1.1
+Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2018-05-29 08:37:29 UTC; teml
+Packaged: 2019-07-15 18:53:18 UTC; alex
+Author: Matthias Templ [aut, cre],
+  Alexander Kowarik [aut] (<https://orcid.org/0000-0001-8598-4130>),
+  Bernhard Meindl [aut],
+  Andreas Alfons [aut],
+  Mathieu Ribatet [ctb],
+  Johannes Gussenbauer [ctb]
+Maintainer: Matthias Templ <matthias.templ@gmail.com>
 Repository: CRAN
-Date/Publication: 2018-05-29 10:05:27 UTC
+Date/Publication: 2019-07-18 06:37:39 UTC

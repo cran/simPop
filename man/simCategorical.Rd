@@ -4,11 +4,21 @@
 \alias{simCategorical}
 \title{Simulate categorical variables of population data}
 \usage{
-simCategorical(simPopObj, additional, method = c("multinom",
-  "distribution", "ctree", "cforest", "ranger"), limit = NULL,
-  censor = NULL, maxit = 500, MaxNWts = 1500, eps = NULL,
-  nr_cpus = NULL, regModel = NULL, seed = 1, verbose = FALSE,
-  by = "strata")
+simCategorical(
+  simPopObj,
+  additional,
+  method = c("multinom", "distribution", "ctree", "cforest", "ranger"),
+  limit = NULL,
+  censor = NULL,
+  maxit = 500,
+  MaxNWts = 1500,
+  eps = NULL,
+  nr_cpus = NULL,
+  regModel = NULL,
+  seed = 1,
+  verbose = FALSE,
+  by = "strata"
+)
 }
 \arguments{
 \item{simPopObj}{a \code{simPopObj} containing population and household
@@ -108,7 +118,7 @@ the function \code{\link{simStructure}}.
 }
 \examples{
 data(eusilcS) # load sample data
-\dontrun{
+\donttest{
 ## approx. 20 seconds computation time
 inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
 ## in the following, nr_cpus are selected automatically

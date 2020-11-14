@@ -51,6 +51,7 @@
 #' @examples
 #' data(eusilcS)
 #' data(eusilcP)
+#' library(data.table)
 #' 
 #' # no districts are available in the population, so we have to generate those
 #' # we randomly assign districts within "region" in the eusilc population data
@@ -89,18 +90,18 @@
 #' setnames(eusilcP,"hid","db030")
 #' inp <- specifyInput(data=eusilcP, hhid="db030", hhsize="hsize", strata="db040",population=TRUE)
 #' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
-#' \dontrun{
+#' \donttest{
 #' # use only HH counts
 #' simPopObj1 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
-#' tspatialP=NULL)
+#' tspatialP=NULL, nr_cpus=1)
 #' 
 #' # use only P counts
 #' simPopObj2 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=NULL,
-#' tspatialP=tabP)
+#' tspatialP=tabP, nr_cpus = 1)
 #' 
 #' # use P and HH counts
 #' simPopObj3 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
-#' tspatialP=tabP)
+#' tspatialP=tabP, nr_cpus = 1)
 #' }
 #' 
 simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatialHH=NULL, 
@@ -335,7 +336,7 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
   names(values) <- levels(data_sample[[region]])
   
   ## add new categorical variables to data set and return
-  data_pop[,c(additional):=values[head(eval(parse(text=region)),1)],by=c(region)]
+  data_pop[,c(additional):=values[unlist(.BY)],by=c(region)]
   
   # check
   simPopObj@pop@data <- data_pop

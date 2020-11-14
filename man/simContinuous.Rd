@@ -4,15 +4,38 @@
 \alias{simContinuous}
 \title{Simulate continuous variables of population data}
 \usage{
-simContinuous(simPopObj, additional = "netIncome",
-  method = c("multinom", "lm", "poisson"), zeros = TRUE,
-  breaks = NULL, lower = NULL, upper = NULL, equidist = TRUE,
-  probs = NULL, gpd = TRUE, threshold = NULL, est = "moments",
-  limit = NULL, censor = NULL, log = TRUE, const = NULL,
-  alpha = 0.01, residuals = TRUE, keep = TRUE, maxit = 500,
-  MaxNWts = 1500, tol = .Machine$double.eps^0.5, nr_cpus = NULL,
-  eps = NULL, regModel = "basic", byHousehold = NULL,
-  imputeMissings = FALSE, seed, verbose = FALSE, by = "strata")
+simContinuous(
+  simPopObj,
+  additional = "netIncome",
+  method = c("multinom", "lm", "poisson"),
+  zeros = TRUE,
+  breaks = NULL,
+  lower = NULL,
+  upper = NULL,
+  equidist = TRUE,
+  probs = NULL,
+  gpd = TRUE,
+  threshold = NULL,
+  est = "moments",
+  limit = NULL,
+  censor = NULL,
+  log = TRUE,
+  const = NULL,
+  alpha = 0.01,
+  residuals = TRUE,
+  keep = TRUE,
+  maxit = 500,
+  MaxNWts = 1500,
+  tol = .Machine$double.eps^0.5,
+  nr_cpus = NULL,
+  eps = NULL,
+  regModel = "basic",
+  byHousehold = NULL,
+  imputeMissings = FALSE,
+  seed,
+  verbose = FALSE,
+  by = "strata"
+)
 }
 \arguments{
 \item{simPopObj}{a \code{\linkS4class{simPopObj}} holding household survey
@@ -219,7 +242,7 @@ need to be simulated beforehand with the functions
 \examples{
 
 data(eusilcS)
-\dontrun{
+\donttest{
 ## approx. 20 seconds computation time
 inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
 simPop <- simStructure(data=inp, method="direct",
@@ -234,7 +257,7 @@ eusilcM <- simContinuous(simPop, additional="netIncome",
 class(eusilcM)
 }
 
-\dontrun{
+\donttest{
 # two-step regression
 eusilcT <- simContinuous(simPop, additional="netIncome",
               regModel = "basic",

@@ -65,20 +65,13 @@ generateValues <- function(dataSample, dataPop, params) {
     }else if ( meth %in% c("ctree","cforest") ) {
       probs <- predict(mod, newdata=data.table(newdata), type="prob")
       probs <- do.call("rbind",probs)
-	  if(ncol(probs)==2){
+	    if(ncol(probs)==2){
         probs <- probs[,2]
-	  }
+	    }
     }else if ( meth %in% c("ranger") ) {
-	  probs <- t(apply(predict(mod,data=newdata,type="response",predict.all=TRUE)$predictions,1,function(x)prop.table(table(factor(x,levels=1:2)))))
-	  if(ncol(probs)!=length(mod$forest$levels)){ # Levels with no occurence in the predictions
-		  missingCV <- mod$forest$class.values[!mod$forest$class.values%in%as.numeric(colnames(probs))]
-		  zeroProbs <- matrix(0,ncol=length(missingCV),nrow=nrow(probs))
-		  colnames(zeroProbs) <- as.character(missingCV)
-		  probs <- cbind(probs,zeroProbs)
+      probs <- predict(mod,data=newdata,type="response")$predictions
+      colnames(probs) <- mod$forest$levels
 	  }
-	  colnames(probs) <- mod$forest$levels[match(as.numeric(colnames(probs)),mod$forest$class.values)]
-	  probs <- probs[,mod$forest$levels]
-	}
     #if ( meth %in% "naivebayes" ) {
     #  probs <- predict(mod, newdata=newdata, type="raw")
     #}
@@ -108,8 +101,6 @@ generateValues <- function(dataSample, dataPop, params) {
     # local function for sampling from probabilities
     if ( length(ind) == 1 ) {
       resample <- function(k, n, p) rep.int(1, n[k])
-    } else if ( length(ind) == 2 ) {
-      resample <- function(k, n, p) spSample(n[k], c(1-p[k],p[k]))
     } else {
       resample <- function(k, n, p) spSample(n[k], p[k,])
     }
@@ -260,7 +251,7 @@ generateValues_distribution <- function(dataSample, dataPop, params) {
 #' @keywords datagen
 #' @examples
 #' data(eusilcS) # load sample data
-#' \dontrun{
+#' \donttest{
 #' ## approx. 20 seconds computation time
 #' inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
 #' ## in the following, nr_cpus are selected automatically
@@ -277,11 +268,10 @@ simCategorical <- function(simPopObj, additional,
   x <- newAdditionalVarible <- NULL
 
   method <- match.arg(method)
-  dataP <- popObj(simPopObj)
-  dataS <- sampleObj(simPopObj)
   # required because we do not want to change existing populaton by reference
   # thus a copy of the dataset is taken. additional variables will be added to
   # this dataset
+  dataS <- sampleObj(simPopObj)
   data_pop_o <- copy(popData(simPopObj))
   data_pop <- popData(simPopObj)
   data_sample <- sampleData(simPopObj)
@@ -494,7 +484,7 @@ simCategorical <- function(simPopObj, additional,
 		  if(!dataS@ispopulation){
   		  formula.cmd <- paste0(formula.cmd,", case.weights=dataSample$", dataS@weight)
 	  	}
-  		formula.cmd <- paste0(formula.cmd, ", data=dataSample))", sep="")
+		  formula.cmd <- paste0(formula.cmd, ", data=dataSample,probability=TRUE))", sep="")
 	  	if(verbose) cat("we are running random forest (ranger):\n")
 		  if(verbose) cat(strwrap(cat(gsub("))",")",gsub("suppressWarnings[(]","",formula.cmd)),"\n"), 76), sep = "\n")
 	}
@@ -535,7 +525,7 @@ simCategorical <- function(simPopObj, additional,
         values <- foreach(x=levels(data_sample[[curStrata]]), .options.snow=list(preschedule=FALSE)) %dopar% {
           generateValues(
               dataSample=sampWork[sampWork[[curStrata]] == x,c(params$cur.var,predNames,params$w),with=FALSE],
-              dataPop=data_pop[indStrata[[x]], predNames, with=F], params
+              dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params
           )
         }
         stopCluster(cl)
@@ -545,7 +535,7 @@ simCategorical <- function(simPopObj, additional,
         values <- mclapply(levels(data_sample[[curStrata]]), function(x) {
               generateValues(
                   dataSample=sampWork[sampWork[[curStrata]] == x,c(params$cur.var,predNames,params$w),with=FALSE],
-                  dataPop=data_pop[indStrata[[x]], predNames, with=F], params
+                  dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params
               )
             }, mc.cores=nr_cores)
       }
@@ -553,7 +543,7 @@ simCategorical <- function(simPopObj, additional,
       values <- lapply(levels(data_sample[[curStrata]]), function(x) {
             generateValues(
                 dataSample=sampWork[sampWork[[curStrata]] == x,c(params$cur.var,predNames,params$w),with=FALSE],
-                dataPop=data_pop[indStrata[[x]], predNames, with=F], params
+                dataPop=data_pop[indStrata[[x]], predNames, with=FALSE], params
             )
           })
     }

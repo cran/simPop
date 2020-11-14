@@ -657,7 +657,7 @@ runModel <- function(dataS, dataP, params, typ) {
 #' @examples
 #'
 #' data(eusilcS)
-#' \dontrun{
+#' \donttest{
 #' ## approx. 20 seconds computation time
 #' inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
 #' simPop <- simStructure(data=inp, method="direct",
@@ -672,7 +672,7 @@ runModel <- function(dataS, dataP, params, typ) {
 #' class(eusilcM)
 #' }
 #'
-#' \dontrun{
+#' \donttest{
 #' # two-step regression
 #' eusilcT <- simContinuous(simPop, additional="netIncome",
 #'               regModel = "basic",
@@ -829,7 +829,11 @@ simContinuous <- function(simPopObj, additional = "netIncome",
       if ( is.null(upper) && gpd ) {
         upper <- Inf
       }
-      breaks <- getBreaks(additionalS, dataS[[weight]], zeros, lower, upper, equidist, probs)
+      weights <- NULL
+      if(!is.null(weight)){
+        weights <- dataS[[weight]]
+      }
+      breaks <- getBreaks(additionalS, weights=weights, zeros, lower, upper, equidist, probs)
     }
   } else {
     if(method=="lm"){

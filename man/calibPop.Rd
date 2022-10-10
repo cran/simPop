@@ -7,22 +7,29 @@
 \usage{
 calibPop(
   inp,
-  split,
+  split = NULL,
+  splitUpper = NULL,
   temp = 1,
-  eps.factor = 0.05,
+  epsP.factor = 0.05,
+  epsH.factor = 0.05,
+  epsMinN = 0,
   maxiter = 200,
   temp.cooldown = 0.9,
   factor.cooldown = 0.85,
   min.temp = 10^-3,
   nr_cpus = NULL,
   sizefactor = 2,
-  memory = TRUE,
   choose.temp = TRUE,
   choose.temp.factor = 0.2,
   scale.redraw = 0.5,
   observe.times = 50,
   observe.break = 0.05,
-  verbose = FALSE
+  n.forceCooldown = 100,
+  verbose = FALSE,
+  hhTables = NULL,
+  persTables = NULL,
+  redist.var = NULL,
+  redist.var.factor = 1
 )
 }
 \arguments{
@@ -31,15 +38,30 @@ calibPop(
 
 \item{split}{given strata in which the problem will be split. Has to
 correspond to a column population data (slot 'pop' of input argument 'inp')
-. For example \code{split = c("region")}, problem will be split for
+. For example \code{split = (c("region")}, problem will be split for
 different regions. Parallel computing is performed automatically, if
 possible.}
 
+\item{splitUpper}{optional column in the population for which decides the part
+of the population from which to sample for each entry in \code{split}.
+Has to correspond to a column population data (slot 'pop' of input argument 'inp').
+For example \code{split = c("region"), splitUpper = c("Country")}
+all units from the country are eligable for donor sample when problem is split
+into regions. Is usefull if \code{simInitSpatial()} was used and the variable to split
+the problem into results in very small groups (~couple of hundreds to thousands).}
+
 \item{temp}{starting temperatur for simulated annealing algorithm}
 
-\item{eps.factor}{a factor (between 0 and 1) specifying the acceptance
-error. For example eps.factor = 0.05 results in an acceptance error for the
-objective function of \code{0.05*sum(totals)}.}
+\item{epsP.factor}{a factor (between 0 and 1) specifying the acceptance
+error for contingency table on individual level. For example epsP.factor = 0.05 results in an acceptance error for the
+objective function of \code{0.05*sum(People)}.}
+
+\item{epsH.factor}{a factor (between 0 and 1) specifying the acceptance
+error for contingency table on household level. For example epsH.factor = 0.05 results in an acceptance error for the
+objective function of \code{0.05*sum(Households)}.}
+
+\item{epsMinN}{integer specifying the minimum number of units from which the synthetic populatin can deviate from cells in contingency tables.
+This overwrites \code{epsP.factor} and \code{epsH.factor}. Is especially usefull if cells in \code{hhTables} and \code{persTables} are very small, e.g. <10.}
 
 \item{maxiter}{maximum iterations during a temperature step.}
 
@@ -57,27 +79,35 @@ that should be used for parallel processing.}
 
 \item{sizefactor}{the factor for inflating the population before applying 0/1 weights}
 
-\item{memory}{if TRUE simulated annealing is applied in less memory intensive way. Is especially usefull if factor or population is large. For this option simulated annealing is not entirely implemented in C++, therefore it might be slower than option \code{memory=FALSE}.}
-
-\item{choose.temp}{if TRUE \code{temp} will be rescaled according to \code{eps} and \code{choose.temp.factor}. \code{eps} is defined by the product between \code{eps_factore} and the sum over the target population margins, see \code{\link{addKnownMargins}}. Only used if \code{memory=TRUE}.}
+\item{choose.temp}{if TRUE \code{temp} will be rescaled according to \code{eps} and \code{choose.temp.factor}. \code{eps} is defined by the product between \code{epsP.factor} and \code{epsP.factor} with the sum over the target population margins supplied by \code{\link{addKnownMargins}} or \code{hhTables} and \code{persTables}.}
 
 \item{choose.temp.factor}{number between (0,1) for rescaling \code{temp} for simulated annealing. \code{temp} redefined by\code{max(temp,eps*choose.temp.factor)}.
-Can be usefull if simulated annealing is split into subgroups with considerably different population sizes. Only used if \code{choose.temp=TRUE} and \code{memory=TRUE}.}
+Can be usefull if simulated annealing is split into subgroups with considerably different population sizes. Only used if \code{choose.temp=TRUE}.}
 
-\item{scale.redraw}{Only used if \code{memory=TRUE}. Number between (0,1) scaling the number of households that need to be drawn and discarded in each iteration step.
+\item{scale.redraw}{Number between (0,1) scaling the number of households that need to be drawn and discarded in each iteration step.
 The number of individuals currently selected through simulated annealing is substracted from the sum over the target population margins added to \code{inp} via \code{addKnownMargins}.
 This difference is divided by the median household size resulting in an estimated number of housholds that the current synthetic population differs from the population margins (~\code{redraw_gap}).
 The next iteration will then adjust the number of housholds to be drawn or discarded (\code{redraw}) according to \code{max(ceiling(redraw-redraw_gap*scale.redraw),1)} or \code{max(ceiling(redraw+redraw_gap*scale.redraw),1)} respectively.
 This keeps the number of individuals in the synthetic population relatively stable regarding the population margins. Otherwise the synthetic population might be considerably larger or smaller then the population margins, through selection of many large or small households.}
 
-\item{observe.times}{Only used if \code{memory=TRUE}. Number of times the new value of the objective function is saved. If \code{observe.times=0} values are not saved.}
+\item{observe.times}{Number of times the new value of the objective function is saved. If \code{observe.times=0} values are not saved.}
 
-\item{observe.break}{Only used if \code{memory=TRUE}. When objective value has been saved \code{observe.times}-times the coefficient of variation is calculated over saved values; if the coefficient of variation falls below \code{observe.break}
+\item{observe.break}{When objective value has been saved \code{observe.times}-times the coefficient of variation is calculated over saved values; if the coefficient of variation falls below \code{observe.break}
 simmulated annealing terminates. This repeats for each new set of \code{observe.times} new values of the objecive function. Can help save run time if objective value does not improve much. Disable this termination by either setting \code{observe.times=0} or \code{observe.break=0}.}
+
+\item{n.forceCooldown}{integer, if the solution does not move for \code{n.forceCooldown} iterations then a cooldown is automatically done.}
 
 \item{verbose}{boolean variable; if TRUE some additional verbose output is
 provided, however only if \code{split} is NULL. Otherwise the computation is
 performed in parallel and no useful output can be provided.}
+
+\item{hhTables}{information on population margins for households}
+
+\item{persTables}{information on population margins for persons}
+
+\item{redist.var}{single column in the population which can be redistributed in each `split`. Still experimental!}
+
+\item{redist.var.factor}{numeric in the interval (0,1]. Used in combinationo with `redist.var`, still experimental!}
 }
 \value{
 Returns an object of class \code{\linkS4class{simPopObj}} with an
@@ -116,7 +146,6 @@ this decision.
 data(eusilcS) # load sample data
 data(eusilcP) # population data
 \donttest{
-## approx. 20 seconds computation time
 inp <- specifyInput(data=eusilcS, hhid="db030", hhsize="hsize", strata="db040", weight="db090")
 simPop <- simStructure(data=inp, method="direct", basicHHvars=c("age", "rb090"))
 simPop <- simCategorical(simPop, additional=c("pl030", "pb220a"), method="multinom", nr_cpus=1)
@@ -127,13 +156,35 @@ margins <- as.data.frame(
 colnames(margins) <- c("db040", "rb090", "pb220a", "freq")
 simPop <- addKnownMargins(simPop, margins)
 simPop_adj2 <- calibPop(simPop, split="db040", 
-  temp=1, eps.factor=0.1,
-  memory=TRUE, nr_cpus = 1)
+  temp=1, epsP.factor=0.1,
+ epsMinN=10, nr_cpus = 1)
 }
 # apply simulated annealing
 \donttest{
-## long computation time
-simPop_adj <- calibPop(simPop, split="db040", temp=1, eps.factor=0.1,memory=FALSE)
+simPop_adj <- calibPop(simPop, split="db040", temp=1,
+epsP.factor=0.1,nr_cpus = 1)
+}
+\donttest{
+### use multiple different margins
+# person margins
+persTables <- as.data.frame(
+xtabs(rep(1, nrow(eusilcP)) ~ eusilcP$region + eusilcP$gender + eusilcP$citizenship))
+colnames(persTables) <- c("db040", "rb090", "pb220a", "Freq")
+
+# household margins
+filter_hid <- !duplicated(eusilcP$hid)
+eusilcP$hsize4 <- pmin(4,as.numeric(eusilcP$hsize))
+hhTables <- as.data.frame(
+  xtabs(rep(1, sum(filter_hid)) ~ eusilcP[filter_hid,]$region+eusilcP[filter_hid,]$hsize4))
+colnames(hhTables) <- c("db040", "hsize4", "Freq")
+simPop@pop@data$hsize4 <- pmin(4,as.numeric(simPop@pop@data$hsize))
+
+simPop_adj_2 <- calibPop(simPop, split="db040", 
+                         temp=1, epsP.factor=0.1,
+                         epsH.factor = 0.1,
+                         persTables = persTables,
+                         hhTables = hhTables,
+                         nr_cpus = 1)
 }
 }
 \references{

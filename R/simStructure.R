@@ -21,6 +21,8 @@
 #' @param seed optional; an integer value to be used as the seed of the random
 #' number generator, or an integer vector containing the state of the random
 #' number generator to be restored.
+#' @param MaxNWts optional; an integer value for the multinom method for controlling 
+#' the maximum number of weights.
 #' @return An object of class \code{simPopObj} containing the simulated
 #' population household structure as well as the underlying sample that was
 #' provided as input.
@@ -43,8 +45,8 @@
 #' class(eusilcP)
 #' eusilcP
 #' 
-simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), basicHHvars, seed=1) {
-  if ( !class(dataS) == "dataObj" ) {
+simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), basicHHvars, seed=1, MaxNWts = 10000000) {
+  if ( !inherits(dataS, "dataObj" ) ){
     stop("Error. Please provide the input sample in the required format.\n
       It must be an object of class 'dataObj' that can be created using function specifyInput()!\n")
   }
@@ -72,7 +74,7 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
   if ( is.null(dataS@pid) ) {
     setkeyv(dataS@data, dataS@hhid)
   } else {
-    setkeyv(dataS@data, dataS@pid)
+    setkeyv(dataS@data, c(dataS@hhid,dataS@pid))
   }
 
   # extract variables
@@ -107,7 +109,7 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
     if ( method == "multinom" ) {
       empty <- which(households == 0)
       # TODO: allow setting some more arguments
-      mod <- suppressWarnings(multinom(hsize~strata, weights=wH, data=dataH, trace=FALSE))
+      mod <- suppressWarnings(multinom(hsize~strata, weights=wH, data=dataH, trace=FALSE, MaxNWts = MaxNWts))
       newdata <- data.frame(strata=ls)
       rownames(newdata) <- ls
       probs <- as.matrix(predict(mod, newdata=newdata, type="probs"))
@@ -115,10 +117,34 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
       # fraction <- nrow(dataH)/nrow(dataPH)
       # boost <- 1/sqrt(fraction)
       # probs[probs < fraction] <- pmin(fraction, boost*probs[probs < fraction])
-      hsizePH <- unlist(lapply(ls, function(l) spSample(NH[l], probs[l,])))
+      hsizePH <- unlist(lapply(ls, function(l) {
+                # spSample(NH[l], probs[l,]) was removed and insides was adjusted
+                # length(p) was replaced with as.numeric(names(p))
+        n <-  NH[l]
+        p <- probs[l,]
+        
+        sample(as.numeric(names(p)),
+               size = n, 
+               replace = TRUE,
+               prob = p)
+      }
+                               )
+                        )                         
     } else if ( method == "distribution" ) {
-      hsizePH <- unlist(lapply(ls, function(l) spSample(NH[l], households[, l])))
-    }
+      hsizePH <- unlist(lapply(ls, function(l) {
+                 # spSample(NH[l], households[, l]) was removed and insides was adjusted
+                 # length(p) was replaced with as.numeric(names(p))
+        n <-  NH[l]
+        p <- households[, l] 
+                   
+        sample(as.numeric(names(p)),
+               size = n, 
+               replace = TRUE,
+               prob = p)
+    }                           
+                               )
+                        )
+     }                         
     dataPH <- data.frame(hsize=as.factor(hsizePH), strata=factor(rep(ls, times=NH), levels=ls, ordered=is.ordered(strata)))
     households <- tableWt(dataPH)  # recompute number of households
   }
@@ -160,6 +186,7 @@ simStructure <- function(dataS, method=c("direct", "multinom", "distribution"), 
   # the sampled household numbers in list 'numbers' are transformed to
   # indices of data frame 'dataS' and stored in vector 'indices'
   hidH <- hid[hfirst]
+
   indices <- lapply(1:ncomb, function(i) {
     pn <- which(hid %in% hidH[split[[i]]])
     pnM  <- matrix(pn, nrow=as.numeric(grid[i, 1]))

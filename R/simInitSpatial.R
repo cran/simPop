@@ -49,6 +49,7 @@
 #' @keywords manip
 #' @export
 #' @examples
+#' library(data.table)
 #' data(eusilcS)
 #' data(eusilcP)
 #' library(data.table)
@@ -89,17 +90,19 @@
 #' setnames(eusilcP,"region","db040")
 #' setnames(eusilcP,"hid","db030")
 #' inp <- specifyInput(data=eusilcP, hhid="db030", hhsize="hsize", strata="db040",population=TRUE)
-#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
 #' \donttest{
 #' # use only HH counts
+#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
 #' simPopObj1 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
 #' tspatialP=NULL, nr_cpus=1)
 #' 
 #' # use only P counts
+#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
 #' simPopObj2 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=NULL,
 #' tspatialP=tabP, nr_cpus = 1)
 #' 
 #' # use P and HH counts
+#' simPopObj <- simStructure(data=inp, method="direct", basicHHvars=c("age", "gender"))
 #' simPopObj3 <- simInitSpatial(simPopObj, additional="district", region="db040", tspatialHH=tabHH,
 #' tspatialP=tabP, nr_cpus = 1)
 #' }
@@ -133,11 +136,15 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
       curTab[,diff:=nP-freqP]
       curTab[,diffp:=diff/freqP]
       setkey(curTab,diffp)
-      if(any(abs(curTab[["diffp"]]>eps))){
+      if(any(abs(curTab[["diffp"]])>eps)){
         dataPop[,firstP:=!duplicated(hhidtmp)]
         for(i in 1:maxIter){
           s <- curTab[nrow(curTab),abs(round(diff/meanHH))]
-          x1 <- sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],size=s)
+          x1 <- if(length(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp])==1){
+            dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp]
+          }else{
+            sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],size=s)
+          }
           tmp <- data.table(hhidtmp=x1,subregionNeu=
                   sample(curTab[diff<0,subregion],size=length(x1),prob=curTab[diff<0,-diff],replace=TRUE))
           dataPop <- merge(dataPop,tmp,by="hhidtmp",all.x=TRUE)
@@ -148,7 +155,7 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
           curTab[,diff:=nP-freqP]
           curTab[,diffp:=diff/freqP]
           setkey(curTab,diffp)
-          if(!any(abs(curTab[["diffp"]]>eps))){
+          if(!any(abs(curTab[["diffp"]])>eps)){
             break;#End for loop if we are close enough
           }
         }  
@@ -171,12 +178,27 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
       curTab[,diffp:=diff/freqP]
       setkey(curTab,diffp)
       
-      if(any(abs(curTab[["diffp"]]>eps))){
+      if(any(abs(curTab[["diffp"]])>eps)){
         dataPop[,firstP:=!duplicated(hhidtmp)]
         for(i in 1:maxIter){
           s <- curTab[1,abs(round(diff/meanHH))]
-          x1 <- sample(dataPop[subregion==curTab[1,subregion]&firstP,hhidtmp],size=s,prob=1/dataPop[subregion==curTab[1,subregion]&firstP,hsize],replace=TRUE)
-          x2 <- sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],size=s,prob=dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hsize],replace=TRUE)
+          x1 <- if(length(dataPop[subregion==curTab[1,subregion]&firstP,hhidtmp])==1){
+            dataPop[subregion==curTab[1,subregion]&firstP,hhidtmp]
+          }else{
+            sample(dataPop[subregion==curTab[1,subregion]&firstP,hhidtmp],
+                   size=s,
+                   prob=1/dataPop[subregion==curTab[1,subregion]&firstP,hsize],
+                   replace=TRUE)
+          }
+          
+          x2 <- if(length(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp])==1){
+            dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp]
+          }else{
+            sample(dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hhidtmp],
+                   size=s,
+                   prob=dataPop[subregion==curTab[nrow(curTab),subregion]&firstP,hsize],
+                   replace=TRUE)
+          }
           dataPop[hhidtmp%in%x2,subregion:=curTab[1,subregion]]
           dataPop[hhidtmp%in%x1,subregion:=curTab[nrow(curTab),subregion]]
           curTab <- merge(dataTable[,list(freqH,freqP,subregion)],
@@ -184,7 +206,7 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
           curTab[,diff:=nP-freqP]
           curTab[,diffp:=diff/freqP]
           setkey(curTab,diffp)
-          if(!any(abs(curTab[["diffp"]]>eps))){
+          if(!any(abs(curTab[["diffp"]])>eps)){
             break;#End for loop if we are close enough
           }
         }  
@@ -197,10 +219,8 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
   diffp <- firstP <- freqH <- freqP <- freqPopHH <- NULL
   hhidtmp <- hsize <- nP <- t <- subregionNeu <- NULL
   Ns <- Nt <- fak <- NULL
-  dataP <- simPopObj@pop
-  dataS <- simPopObj@sample
-  data_pop <- dataP@data
-  data_sample <- dataS@data
+  data_pop <- simPopObj@pop@data
+  data_sample <- simPopObj@sample@data
   basic <- simPopObj@basicHHvars
 
   
@@ -274,7 +294,7 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
     print(tab)
   }
 
-  tab <- merge(tab,data_pop[,list(freqPopP=.N,freqPopHH=sum(!duplicated(eval(parse(text=dataP@hhid))))),by=c(region)],by=region,all=TRUE)
+  tab <- merge(tab,data_pop[,list(freqPopP=.N,freqPopHH=sum(!duplicated(eval(parse(text=simPopObj@pop@hhid))))),by=c(region)],by=region,all=TRUE)
   # Check if the input table match to the synthetic population
   if(any(is.na(rowSums(tab[,na.omit(match(c("freqP","freqH","freqPopP","freqPopHH"),colnames(tab))),with=FALSE])))){
     stop("The table with household counts and person counts does not merge with the population\n without empty cells.")
@@ -289,7 +309,7 @@ simInitSpatial <- function(simPopObj, additional, region, tspatialP=NULL,tspatia
   indStrata <- split(1:N, data_pop[[region]])
   
   # predictor variables
-  predNames <- dataP@hhid  # in spatial case, it can only be the hhid
+  predNames <- simPopObj@pop@hhid  # in spatial case, it can only be the hhid
   
   params <- list()
   params$additional <- additional

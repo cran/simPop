@@ -17,21 +17,21 @@ setClassUnion('listOrNULL', c('list', 'NULL'))
 #' @import Rcpp
 #' @import party
 #' @import fitdistrplus
+#' @import xgboost
 #' @importFrom lattice bwplot panel.bwplot packet.number panel.points panel.refline panel.xyplot
-#' @importFrom laeken calibVars
 #' @importFrom MASS ginv
 #' @importFrom colorspace heat_hcl
 #' @importFrom VIM hotdeck
 #' @importFrom graphics par
-#' @importFrom stats as.formula chisq.test coef cor cov dlogis formula lm mad quantile rexp na.omit
+#' @importFrom stats as.formula chisq.test coef cor cov dlogis formula lm mad quantile rexp na.omit terms na.pass model.frame
 #' @importFrom utils read.csv2 tail head
 #' @importFrom stats median model.matrix optim plogis ppoints predict rnorm runif uniroot var weighted.mean glm poisson xtabs terms
 # removed  stats quantilerexp
-#' @importFrom plyr revalue
 #' @importFrom EnvStats rlnormTrunc rnormTrunc
 #' @importFrom fitdistrplus fitdist
 #' @importFrom ranger ranger
 #' @importFrom RcppArmadillo armadillo_version
+#' @importFrom matrixStats colSds colMeans2
 NULL
 
 #' Class \code{"dataObj"}
@@ -233,7 +233,7 @@ setClass(
 #' (manageSimPopObj(simPopObj, var="age", sample=FALSE, set=FALSE))
 #' (manageSimPopObj(simPopObj, var="age", sample=TRUE, set=FALSE))
 manageSimPopObj <- function(x, var, sample=FALSE, set=FALSE, values=NULL) {
-  if ( class(x) != "simPopObj" ) {
+  if ( !inherits(x,"simPopObj") ) {
     stop("wrong input of argument 'x' (needs to be of class 'simPopObj')!\n")
   }
   if ( length(var) != 1 ) {

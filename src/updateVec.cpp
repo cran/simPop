@@ -1,10 +1,20 @@
 #include <RcppArmadilloExtensions/sample.h>
+#include <unordered_set>
+#include <unordered_map>
+#include <map>
+#include <algorithm>    // std::count
+#include <vector>       // std::vector
+#include <iostream>
+#include <numeric>
+
 // [[Rcpp::depends(RcppArmadillo)]]
+// Enable C++11 via this plugin (Rcpp 0.10.3 or later)
+// [[Rcpp::plugins(cpp11)]] 
 
 using namespace Rcpp;
 
 // [[Rcpp::export(updateVecC)]]
-IntegerVector updateVecC(IntegerVector init_weight,IntegerVector add_index, IntegerVector remove_index, IntegerVector hhsize, IntegerVector hhid,int sizefactor) {
+IntegerVector updateVecC(IntegerVector &init_weight,IntegerVector &add_index, IntegerVector &remove_index, IntegerVector &hhsize, IntegerVector &hhid,int &sizefactor) {
   
   // define Variables
   int n = hhsize.size();
@@ -17,21 +27,11 @@ IntegerVector updateVecC(IntegerVector init_weight,IntegerVector add_index, Inte
   int j_high=0; // for internal loop
   int count_size=0; //for internal loop
   int id_index=0; //for internal loop
-
+  
   // transform
   IntegerVector add_id(n_add);
   IntegerVector remove_id(n_remove);
   
-  // transform index_add values and index_remove values
-  // define row for removal and adding
-  for(int i=0;i<n_ar;i++){
-    if(i<n_remove){
-      remove_id[i] = remove_index[i] % n;
-    }
-    if(i<n_add){
-      add_id[i] = add_index[i] % n;
-    }
-  }
   //return add_id;
   // got through add_index and remove_index
   // and select update init_weight using hhsize and hhid
@@ -40,13 +40,14 @@ IntegerVector updateVecC(IntegerVector init_weight,IntegerVector add_index, Inte
     if(i<n_remove){
       //remove household 
       // select size and id using modulus operator
-      size = hhsize[remove_id[i]];
-      id = hhid[remove_id[i]];
+      id_index = remove_index[i] % n;
+      size = hhsize[id_index];
+      id = hhid[id_index];
       
       j_low = remove_index[i]-(size-1);
-      j_low = std::max(remove_index[i]-remove_index[i]%n,j_low);
+      j_low = std::max(remove_index[i]-id_index,j_low);
       j_high = remove_index[i]+(size-1);
-      j_high = std::min(j_high,remove_index[i]+n-remove_index[i]%n);
+      j_high = std::min(j_high,remove_index[i]+n-id_index);
       
       count_size =0; //set counter to zero
       
@@ -68,17 +69,16 @@ IntegerVector updateVecC(IntegerVector init_weight,IntegerVector add_index, Inte
     if(i<n_add){
       // add household
       // select size and id using modulus operator
-      size = hhsize[add_id[i]];
-      id = hhid[add_id[i]];
+      id_index = add_index[i] % n;
+      size = hhsize[id_index];
+      id = hhid[id_index];
       
       j_low = add_index[i]-(size-1);
-      j_low = std::max(add_index[i]-add_index[i]%n,j_low);
+      j_low = std::max(add_index[i]-id_index,j_low);
       j_high = add_index[i]+(size-1);
-      j_high = std::min(j_high,add_index[i]+n-add_index[i]%n);
-      
+      j_high = std::min(j_high,add_index[i]+n-id_index);
       count_size =0; //set counter to zero
       for(int j=j_low;j<(j_high+1);j++){
-        
         id_index = j % n;
         
         // replace init_weight only if hhid at id_index has same household id
@@ -92,7 +92,7 @@ IntegerVector updateVecC(IntegerVector init_weight,IntegerVector add_index, Inte
       }
     }
   }
-
+  
   return init_weight;
 }
 
@@ -111,71 +111,342 @@ IntegerVector sumVec(IntegerVector init_weight,int sizefactor){
   return init_hh;
 }
 
-// [[Rcpp::export(select_equal)]]
-List select_equal(IntegerVector x,int val1, int val2){
+// helpfunction to split vector between 0 and 1
+// [[Rcpp::export]]
+Rcpp::List splitVector(Rcpp::IntegerVector &x){
   
-  int n1 = sum(x==val1);
-  int n2 = sum(x==val2);
-  int k1 = 0;
-  int k2 = 0;
-  IntegerVector out1(n1);
-  IntegerVector out2(n2);
+  int ones = 0;
+  int zeros = 0;
+  int nOnes = sum(x);
+  Rcpp::IntegerVector xOnes(nOnes);
+  Rcpp::IntegerVector xZeros(x.size()-nOnes);
   
   for(int i=0;i<x.size();i++){
-   if(x[i]==val1){
-     out1[k1] = i;
-     k1 = k1+1;
-   }
-   if(x[i]==val2){
-     out2[k2] = i;
-     k2 = k2+1;
-   }
+    if(x[i]==1){
+      xOnes[ones] = i;
+      ones += 1;
+    }else{
+      xZeros[zeros] = i;
+      zeros += 1;
+    }
   }
   
-  return Rcpp::List::create(Rcpp::Named("hh_1") = out1,
-                     Rcpp::Named("hh_2") = out2);
+  return Rcpp::List::create(Rcpp::Named("indexAdd") = xZeros,
+                            Rcpp::Named("indexRemove") = xOnes);
   
 }
 
-
+// helpfunction to calcualte probabilities for each
+// case
+// called inside c++ function calcProbabilities()
+//
 // [[Rcpp::export]]
-std::map<int,int> tableC(IntegerVector x){
-  // Create a map
-  std::map<int, int> tab;
+double calcCase(Rcpp::NumericVector &x){
   
-  tab.clear();
-  
-  // Fill the map with occurrences per number.
-  for (int i = 0; i < x.size(); ++i) {
-    tab[ x[i] ] += 1;
+  double probx = 0;
+  if(sum(x)!=0){
+    // if different from 0
+    // calculate mean of x multiplied by weighted sum over sign(x)
+    double meanx = std::abs(mean(x));
+    //Rcpp::NumericVector signx = as<NumericVector>(sign(x));
+    double wmSign = sum(abs(x))/sum(x);
+    
+    probx = meanx*wmSign;
+    
   }
-  return tab;
+  
+  return probx;
+  
+}  
+
+// helpfunction to calcualte probabilities for each
+// case
+// called inside c++ function calcProbabilities()
+//
+// [[Rcpp::export]]
+double calcCase2(Rcpp::NumericVector &x){
+  
+  Rcpp::NumericVector x_2 = as<NumericVector>(sign(x)) * pow(x,2.0);
+  double probx = sum(x_2);
+  probx = sqrt(abs(probx)) * std::copysign(1.0,probx);
+  
+  return(probx);
+  
+}  
+
+// help function to calculate probabilites using x and an index matrix
+// used to calculate sampling probabilities
+// probabilities <- sum(x[indexMat(i,_)])
+// if probabilities <=0 ==> exp(sum(x[indexMat(i,_)]))
+// x = vector containing differencen
+// indexMat = matrix containing indices which subset x
+// initWeight = 0-1 vector
+// [[Rcpp::export]]
+Rcpp::List calcProbabilities(Rcpp::IntegerMatrix &indexMat, Rcpp::NumericVector &x, Rcpp::NumericVector &Npop, Rcpp::IntegerVector &indexData, Rcpp::IntegerVector &initWeight,
+                             Rcpp::IntegerVector &indexAdd, Rcpp::IntegerVector &indexRemove, int n_add, int n_remove){
+  
+  int nrow = indexMat.nrow();
+  Rcpp::NumericVector probAdd(nrow);
+  Rcpp::NumericVector helpVec(indexMat.ncol());
+  Rcpp::LogicalVector negIndex(nrow);
+  double sumNegatives = 0.0;
+  double sumPositives = 0.0;
+  
+  // get probabilites for adding
+  for(int i=0;i<nrow;i++){
+    helpVec = x[indexMat(i,_)];
+    probAdd[i] = calcCase(helpVec);
+    negIndex[i] = probAdd[i]<=0;
+    if(negIndex[i]){
+      sumNegatives += probAdd[i];
+    }else{
+      sumPositives += probAdd[i];
+    }
+  }
+  
+  // get probabilities for removing
+  Rcpp::NumericVector probRemove = probAdd*-1;
+  
+  // addjust probabilities for negative differences
+  probAdd[negIndex] = exp(sumNegatives);
+  probRemove[!negIndex] = exp(-1*sumPositives);
+  
+  int m_value = 1; // maybe make this a parameter
+  if((max(x)*m_value)<n_add){
+    // std::cout<<"adjust\n";
+    // create weighted mean between probAdd and probRemove 
+    // if number of draws succeeds highest positived difference to target margins
+    probAdd = (probAdd*max(x)*m_value + probRemove*(n_add-max(x)*m_value))/n_add;
+  }
+  if(abs(min(x)*m_value)<n_remove){
+    probRemove = (probRemove*abs(min(x)*m_value) + probAdd*(n_remove-abs(min(x)*m_value)))/n_remove;
+  }
+  
+  // for(int i=0;i<probAdd.size();i++){
+  //   std::cout<<"probAdd"<<probAdd[i]<<"\n";
+  // }
+  // 
+  // for(int i=0;i<probRemove.size();i++){
+  //   std::cout<<"probRemove"<<probRemove[i]<<"\n";
+  // }
+  
+  // get probabilites for each index in indexData
+  // considering initWeight
+  int helpIndex = 0;
+  int kRemove = 0;
+  int kAdd = 0;
+  int sizeData = indexData.size();
+  int Ones = indexRemove.size();
+  int Zeros = indexAdd.size();
+  
+  /*
+   Rcpp::NumericVector probAdd_help = probAdd[indexData][indexAdd % sizeData];
+   Rcpp::NumericVector probRemove_help = probRemove[indexData][indexRemove % sizeData];
+   Rcpp::LogicalVector addPos = probAdd_help>0;
+   Rcpp::LogicalVector removePos = probRemove_help>0;
+   Rcpp::IntegerVector indexAddNew = indexAdd[addPos];
+   Rcpp::IntegerVector indexRemoveNew = indexRemove[removePos];
+   Rcpp::NumericVector probAdd_out = probAdd_help[addPos];
+   Rcpp::NumericVector probRemove_out = probRemove_help[removePos];
+   */
+  std::vector<double> probAdd_out(Zeros);
+  std::vector<double> probRemove_out(Ones);
+  std::vector<int> indexRemoveNew(Ones);
+  std::vector<int> indexAddNew(Zeros);
+  std::vector<int> count_group_add(nrow);
+  std::vector<int> count_group_remove(nrow);
+  
+  // loop through vectors to add and remove to get number of units in each group
+  for(int i=0; i<std::max(Ones,Zeros);i++){
+    if(i<Zeros){ // && 
+      helpIndex =  indexData[indexAdd[i] % sizeData];
+      count_group_add[helpIndex]++;
+    }
+    if(i<Ones){ //
+      helpIndex =  indexData[indexRemove[i] % sizeData];
+      count_group_remove[helpIndex]++;
+    }
+  }
+  // adjust probabilites to the population size
+  for(int i=0;i<nrow;i++){
+    probAdd[i] = probAdd[i]/count_group_add[i];
+    probRemove[i] = probRemove[i]/count_group_remove[i];
+  }
+  
+  // create vector with sample probabilites for whole possible sampel size
+  for(int i=0; i<std::max(Ones,Zeros);i++){
+    if(i<Zeros){ // && 
+      helpIndex =  indexData[indexAdd[i] % sizeData];
+      if(probAdd[helpIndex]>0){
+        indexAddNew[kAdd] = indexAdd[i];
+        probAdd_out[kAdd] = probAdd[helpIndex];
+        kAdd = kAdd +1;
+      }
+    }
+    if(i<Ones){ //
+      helpIndex =  indexData[indexRemove[i] % sizeData];
+      if(probRemove[helpIndex]>0){
+        indexRemoveNew[kRemove] = indexRemove[i];
+        probRemove_out[kRemove] = probRemove[helpIndex];
+        kRemove = kRemove+1;
+      }
+    }
+  }
+  probRemove_out.resize(kRemove);
+  indexRemoveNew.resize(kRemove);
+  probAdd_out.resize(kAdd);
+  indexAddNew.resize(kAdd);
+  
+  
+  return Rcpp::List::create(Rcpp::Named("probAdd") = probAdd_out,
+                            Rcpp::Named("probRemove") = probRemove_out,
+                            Rcpp::Named("indexRemove") = indexRemoveNew,
+                            Rcpp::Named("indexAdd") = indexAddNew,
+                            Rcpp::Named("nAdd") = kAdd,
+                            Rcpp::Named("nRemove") = kRemove);
 }
 
-// [[Rcpp::export]]
-IntegerVector csample_num( IntegerVector x,
-                           int size,
-                           bool replace,
-                           NumericVector prob = NumericVector::create()){
-  IntegerVector ret = RcppArmadillo::sample(x, size, replace, prob);
-  return ret;
-}
 
-// [[Rcpp::export]]
-IntegerVector sample_group(IntegerVector x, IntegerVector group_x, IntegerVector group, IntegerVector group_num,bool replace){
+
+//  function to update difference vector and init_weight
+// difference vector is calculated as target counts - synthetic counts
+// function returns new difference between target margins and current margins
+// [[Rcpp::export(updateObjectiveC)]]
+Rcpp::List updateObjectiveC(IntegerVector &init_weight,
+                            IntegerVector &add_index,
+                            IntegerVector &remove_index,
+                            IntegerVector &hhsize,
+                            IntegerVector &hhid,int &sizefactor,
+                            IntegerMatrix &indexMat,
+                            IntegerVector &indexData,
+                            NumericVector diff,
+                            IntegerVector &householdMargin) {
   
-  int n = group.size();
-  IntegerVector out(sum(group_num));
-  int out_pos =0;
+  // define Variables
+  int n = hhsize.size();
+  int n_remove = remove_index.size();
+  int n_add = add_index.size();
+  int n_ar = std::max(n_remove,n_add);
+  int size=0;
+  int id=0;
+  int j_low=0; //for internal loop
+  int j_high=0; // for internal loop
+  int count_size=0; //for internal loop
+  int id_index=0; //for internal loop
+  bool house_margins_updated = false; // for internal loop
+  std::unordered_set<int> indexUsed;
+  int ncol = indexMat.ncol();
+  IntegerVector indexVec(ncol);
+  IntegerVector help_count(ncol);
   
-  for(int i=0;i<n;i++){
-   // sample integer values
-   IntegerVector sample_i = csample_num(x[group_x==group[i]],group_num[i],replace);
-   
-   for(int j=0;j<sample_i.size();j++){
-     out[j+out_pos] = sample_i[j];
-   }
-   out_pos = out_pos+sample_i.size();
+  // std::cout<< ncol;
+  // got through add_index and remove_index
+  // and select update init_weight using hhsize and hhid
+  // update diff accordingly
+  // ~ each time an index is added or removed add or substract 1 to all marigins the index is part of
+  // each household added the household margins are updated only once using house_marings_updated
+  for(int i=0;i<n_ar;i++){
+    
+    // std::cout<<"test1\n";
+    if(i<n_remove){
+      // remove household if it was not already removed by other index
+      if(indexUsed.find(remove_index[i])==indexUsed.end()){
+        // if index is not in map start removing households which belong to index
+        // select size and id using modulus operator
+        id_index = remove_index[i] % n;
+        size = hhsize[id_index];
+        id = hhid[id_index];
+        
+        j_low = remove_index[i]-(size-1);
+        j_low = std::max(remove_index[i]-id_index,j_low);
+        j_high = remove_index[i]+(size-1);
+        j_high = std::min(j_high,remove_index[i]+n-id_index);
+        
+        count_size =0; //set counter to zero
+        
+        for(int j=j_low;j<(j_high+1);j++){
+          
+          id_index = j % n;
+          
+          // replace init_weight only if hhid at id_index has same household id
+          if(hhid[id_index]==id){
+            init_weight[j] = 0;
+            count_size = count_size + 1;
+            // std::cout<<"remove\n";
+            // update difference vector
+            // std::cout<<"test again "<<indexData[id_index]<<"\n";
+            indexVec = indexMat(indexData[id_index],_);
+            for(int d=0; d<ncol; d++){
+              // std::cout<<"test d"<<indexVec[d]<<"\n";
+              // std::cout<<"test again"<<diff[indexVec[d]]<<"\n";
+              if(householdMargin[indexVec[d]]==0){
+                // difference vector is target - synthetic
+                // removing an index from synthetic -> diff is added by 1
+                diff[indexVec[d]]++; 
+              }else if(householdMargin[indexVec[d]]==1 && house_margins_updated==false){
+                diff[indexVec[d]]++;
+              }
+            }
+            house_margins_updated = true; // after the first person in a household was removed dont update household tables again
+            indexUsed.insert(j); // save index in map so it is not used again
+          }
+          if(count_size==size){
+            break;
+          }
+        }
+        // set  house_margins_updated to false again for next round
+        house_margins_updated = false;
+      }
+    }
+    
+    if(i<n_add){
+      // add household
+      // add household if it was not already added by other index
+      if(indexUsed.find(add_index[i])==indexUsed.end()){
+        // if index is not in map start adding households which belong to index
+        // select size and id using modulus operator
+        // std::cout<<"add\n";
+        id_index = add_index[i] % n;
+        size = hhsize[id_index];
+        id = hhid[id_index];
+        
+        j_low = add_index[i]-(size-1);
+        j_low = std::max(add_index[i]-id_index,j_low);
+        j_high = add_index[i]+(size-1);
+        j_high = std::min(j_high,add_index[i]+n-id_index);
+        count_size =0; //set counter to zero
+        for(int j=j_low;j<(j_high+1);j++){
+          id_index = j % n;
+          
+          // replace init_weight only if hhid at id_index has same household id
+          if(hhid[id_index]==id){
+            init_weight[j] = 1;
+            count_size = count_size + 1;
+            
+            // update difference vector
+            indexVec = indexMat(indexData[id_index],_);
+            for(int d=0; d<ncol; d++){
+              if(householdMargin[indexVec[d]]==0){
+                // difference vector is target - synthetic
+                // adding an index from synthetic -> diff is reduced by 1
+                diff[indexVec[d]]--;
+              }else if(householdMargin[indexVec[d]]==1 && house_margins_updated==false){
+                diff[indexVec[d]]--;
+              }
+            }
+            house_margins_updated = true; // after the first person in a household was removed dont update household tables again
+            indexUsed.insert(j); // save index in map so it is not used again
+          }
+          if(count_size==size){
+            break;
+          }
+        }
+        // set  house_margins_updated to false again for next round
+        house_margins_updated = false;
+      }
+    }
   }
-  return out;
+  
+  return Rcpp::List::create(Rcpp::Named("init_weight") = init_weight,
+                            Rcpp::Named("diff_new") = diff);
 }

@@ -1,4 +1,4 @@
-9057a3db2538f6c7585e4614a054a524 *DESCRIPTION
+1e24e5985fbd19d4f26188f6838f31ae *DESCRIPTION
 a88c62f7a30d9f6259a1e0594f343131 *NAMESPACE
 cb45602f3c250d5f3dbf635c76506f35 *NEWS
 c1faab67e32411dc6149c4667030d273 *R/0classes.R
@@ -25,7 +25,7 @@ fc4e28d2ff077efd237068ee257c552b *R/silcTools.R
 6111cbcecef63f16f3b82c3fdb0a4377 *R/simAnnealingDT.R
 6586e95ce1f819b80ed360f5aebedbcc *R/simCategorical.R
 eab8b81cce7a16547e3a449d6886ce62 *R/simComponents.R
-db2a1afb6bf029c9dde05a6d962fad55 *R/simContinuous.R
+672c2e1cb5d5ef859170c290a7fb45e5 *R/simContinuous.R
 f8c708adaf77055328747705700b85df *R/simEUSILC.R
 825efc0ccac5631ddaf5d4b24929a74d *R/simGPD.R
 fa0b474527064a08d7b6189be5ad5e10 *R/simInitSpatial.R
@@ -49,7 +49,7 @@ ab3f63772d4cd43173c91ff20418fcc8 *R/utility.R
 7f22484abfc24c616137b1f01853a07d *R/whipple.R
 bdf8f11abe1b264936232ecc56b60d87 *R/zzz.R
 6e8a8e41c6cc2d3664f42d82e33bedde *README.md
-ca8c06ddcd4e46d57efd1e300a1c0205 *build/partial.rdb
+ebc5f7e14ddf0083a2ff854ad8514388 *build/partial.rdb
 882aad0d44f7ec9d1a539b4f1fdf7f97 *data/datalist
 34af3937bd42d04cdb40f4853cc1accd *data/eusilc13puf.rda
 7422d16e72a9a0f2cc13b73ea55b67ba *data/eusilcP.RData
@@ -98,7 +98,7 @@ a28fcd344816465cb4da4012d743a9cf *man/quantileWt.Rd
 aff1a47af56bb974c008acbf895bca4e *man/silcTools2.Rd
 ceeddb95880746de7735f69683ed218d *man/simCategorical.Rd
 00ce587a41cc94b1ac15e801f0d14dbf *man/simComponents.Rd
-b71402957876b6e90f65f2e4c04fa43d *man/simContinuous.Rd
+96677032da30d2293b34e8f6cddbba4c *man/simContinuous.Rd
 0172eeb5f7f16fd6930a76368cbe9ca9 *man/simEUSILC.Rd
 4931691d1b96526458214a49c69f2bff *man/simInitSpatial.Rd
 40b0268500bdb3aed6c6c6c0eba3c31f *man/simPop-package.Rd

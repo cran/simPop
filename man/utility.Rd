@@ -23,7 +23,7 @@ utilityIndicator(x, y)
 \item{y}{a data.frame, typically the corresponding synthetic data set. For \code{utilityIndicator} this should be a vector of length 1.}
 
 \item{type}{which measure
-\itemize{
+\describe{
  \item{compareColumns}{compares the intersection of variables}
  \item{compareRows}{compares the number of rows}
  \item{compareRowsHH}{compares the number of housholds}
@@ -45,13 +45,13 @@ Various utility measues that basically compares two data sets
 }
 \section{Functions}{
 \itemize{
-\item \code{utility}: comparisons of two data sets
+\item \code{utility()}: comparisons of two data sets
 
-\item \code{utilityModal}: comparison of number of categories
+\item \code{utilityModal()}: comparison of number of categories
 
-\item \code{utilityIndicator}: difference between two values
+\item \code{utilityIndicator()}: difference between two values
+
 }}
-
 \examples{
 data(eusilcS)
 data(eusilcP)
